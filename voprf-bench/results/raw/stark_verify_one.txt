@@ -1,0 +1,7 @@
+verify: ok
+verify_ms: 0.737
+n_and: 6400
+gc_hash: 467a02ba80f585d5068e4c5cd1c0f7ba0bfc9c37e3d37694fc55d3c67e4c8412
+R_root: 38b02b37190d52e322ad6e901856578e25beefe4b2e2b141a413eef9657359dd
+binding: f3997fd3a9c2c90c519036819ab3acfbdd05efb0b5d103cc4e5d4cc9c986947f
+air: halfgate-garble+keycm-binding

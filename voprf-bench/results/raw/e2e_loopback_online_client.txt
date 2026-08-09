@@ -1,22 +1,48 @@
-voprf_e2e role=client ip=127.0.0.1 port=19100 m=128 n_ot=32768 tables=online
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.pcid [bit 17]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.x2apic [bit 21]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.tsc-deadline [bit 24]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.hle [bit 4]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.invpcid [bit 10]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.rtm [bit 11]
+voprf_e2e role=client ip=127.0.0.1 port=19001 m=128 n_ot=32768 tables=online
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.pcid [bit 17]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.x2apic [bit 21]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.tsc-deadline [bit 24]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.hle [bit 4]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.invpcid [bit 10]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.rtm [bit 11]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.pcid [bit 17]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.x2apic [bit 21]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.tsc-deadline [bit 24]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.hle [bit 4]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.invpcid [bit 10]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.rtm [bit 11]
 role: client
+protocol: GC-VOPRF-Fig9-10
 tables_mode: online
 m: 128
 n_ot: 32768
-tables_bytes: 209768
-proof_bytes: 38887
-offline_ms: 11.403
-offline_B: 753728
-online_ms: 330.045
-online_ms_per_eval: 2.578
-online_B: 520631
-online_B_per_eval: 4067.430
+H1H2: SHA-256
+probe_resilient: s=2 n=256
+offline_ms: 32736.458
+offline_B: 759984
+online_ms: 745.356
+online_ms_per_eval: 5.823
+online_B: 28181422
+online_B_per_eval: 220167.359
 online_rounds: 2
-verify_ok: 1
+stark_ok: 1
+bind_ok: 1
+fk_gc_evals: 128
+plaintext_Fk_match: 128/128
+proof_bytes: 81197
 stark_verify_log:
-verify_ms: 0.356
-proof_bytes: 38887
-n: 16384
-digest: e1170fe11d409932
 verify: ok
+verify_ms: 0.740
+n_and: 6400
+gc_hash: 389ad2d18d99a3588c167140acd856dea17822fa113130150a7ebccad9bdc5aa
+R_root: ed079de29d735850a21aada9cc46bb9628fdee2ef1336de68d916fa49e9c027d
+binding: bcaff2f0baf028f24f7d02fac4cc0776768d349d30c5d9b9267cbce6c4c6fd65
+air: halfgate-garble+keycm-binding
+y0: 54d8bbd359b46ed1043d2a59c04bc948c64ef1b290385575c1371f5a6588bf78
 check: pass

@@ -1,10 +1,11 @@
-# GC-VOPRF vs Gold — Same-Machine Linux/x86 Online Benchmarks
+# GC-VOPRF Route B — True Fig.9–10 E2E (AES datapath + half-gate STARK)
 
 **Date:** 2026-08-09  
-**Host:** `pqc-research-node` (Debian 12, KVM guest)  
-**Purpose:** Replace cross-machine Table V numbers with **one machine** measurements for Ours (component synthesis) and Gold (PR-OPRF official, PQ malicious).
+**Host:** `cl` (Ubuntu, QEMU Virtual CPU 2.5+)  
+**Status:** **True E2E** — client \(y_i = F_k(x_i) = H_2(x_i,\mathrm{AES}_k(H_1(x_i)))\) matches plaintext for full batch \(m=128\).
 
-> All numbers in the final comparison table are from **this host**, except STARK verify (no `rustc` here; Mac baseline used and labeled).
+> This supersedes the earlier Fib-placeholder / component-synthesis numbers.  
+> Fib stub moved to `stark-mmo-fib-stub/`. New AIR: `stark-garble/` (half-gate + key-cm binding).
 
 ---
 
@@ -12,263 +13,106 @@
 
 | Item | Value |
 |---|---|
-| Kernel | Linux 6.1.0-49-amd64 x86_64 |
-| CPU | AMD EPYC 9655P (KVM), **2 vCPUs** |
-| RAM | 1.9 GiB + 5 GiB swap |
-| ISA | AVX2 **yes**, AVX-512 **yes**, AES-NI **yes** |
-| Compiler (benches) | Debian clang 19.1.7 |
-| Notes | Much weaker than Apple M5 Pro Mac baseline; expect ~30× slower SoftSpoken OT |
+| Kernel | Linux 7.0.0-27-generic x86_64 |
+| CPU | QEMU Virtual CPU 2.5+, **64 vCPUs** |
+| ISA | SSE4.2 + AES-NI; **no AVX2 on host** |
+| RAM | 192 GiB |
+| Workaround | SoftSpoken / KyberOT binaries run under `qemu-x86_64-static -cpu Haswell` |
+| Compiler | conda g++ 15.2.0; rustc 1.97.1 |
 
 Raw: `results/raw/machine.txt`
 
 ---
 
-## 2. Reproduce
+## 2. Protocol (paper Fig.9–10)
+
+- \(F_k(x)=H_2(x,\mathrm{AES}_k(H_1(x)))\), AES-128  
+- \(H_1,H_2\): **SHA-256** (\(H_1\) truncated to 128 bits)  
+- Circuit: Bristol Fashion `aes_128.txt` (**6400 AND / 30263 XOR**, bit order BErev)  
+- Half-gates + fixed-key AES MMO; KeySchedule local for \(cm\); key bits as garbler wires  
+- Probe-resilient: \(s=2\), \(n=256\) shares / eval; SoftSpokenMal \(m\cdot n=32768\)  
+- Base OT: MasnyRindalKyber (offline)  
+- STARK: winterfell half-gate bit AIR + public binding \((cm,H(GC),R,out)\); **not Fib**
+
+---
+
+## 3. Reproduce
 
 ```bash
 cd voprf-bench
+# deps: conda env voprf-bench + setup libOTe SoftSpoken+MR_KYBER (AVX2 build)
+# Host without AVX2: scripts use qemu-x86_64-static (deps/bin/)
 
-# Garbling
-g++ -O3 -march=native -maes -mpclmul -std=c++17 -o build/garble_bench garble_bench.cpp
-./build/garble_bench 128 | tee results/raw/garble_bench.txt
-
-# SoftSpokenMal OT + Kyber base OT (needs modern libOTe; see setup_libote_modern_linux.sh)
-CXX=clang++-19 bash build_ot_bench_linux.sh
-export LD_LIBRARY_PATH="$PWD/deps/libOTe/out/install/linux/lib:$PWD/deps/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-./build/ot_bench -n 32768 -trials 3 -port 12121 -kyberBase | tee results/raw/ot_sweep_final.txt
-
-# Gold PQ malicious (ENABLE_PQ + FINEGRAIN + SMALLN + MALICIOUS in test TUs)
-# Requires emp-tool 0.1.0 + emp-ot 0.1.1 under deps/local-emp010 and patched libOTe AsioSocket
-bash scripts/run_gold.sh single 22121   # logs → results/raw/gold_single_*.txt
-bash scripts/run_gold.sh batch 24141    # n=1000; logs → results/raw/gold_batch_*.txt
-```
-
-**Critical fix applied:** do **not** `#define COPROTO_ASIO_DEBUG` in `AsioSocket.h` (races with 2 `io_context` threads → `std::terminate`). Fixed in both `deps/libOTe/out/coproto/...` and `deps/local/include/coproto/...`.
-
----
-
-## 3. Ours — component results (this host)
-
-### 3.1 Garbling / GC eval (`garble_bench`)
-
-Synthetic AES-128-scale circuit: **6553 AND + 24000 XOR**, half-gates + MMO AES-128, **AES-NI**.
-
-| Metric | Linux (this host) | Mac M5 Pro (ref only) |
-|---|---|---|
-| garble ms/circuit | **0.509** | ~0.21 |
-| eval ms/circuit | **0.570** | ~0.066 |
-| tables | **209696 B (204.78 KiB)** | ~205 KiB |
-
-Log: `results/raw/garble_bench.txt`
-
-### 3.2 SoftSpokenMal OT extension (online only; fake base OT)
-
-128-bit messages, `baseOtCount=128`, base OT **not** timed in extension path.
-
-| n | recv ms (typ.) | send ms (typ.) | one-side KB | both-dir KB (×2) |
-|---|---|---|---|---|
-| 128 | ~176 | ~176 | 10.5 | 21.0 |
-| 256 | ~176 | ~176 | 11.5 | 23.0 |
-| 512 | ~176 | ~176 | 13.5 | 27.0 |
-| 1024 | ~176 | ~176 | 17.5 | 35.0 |
-| **32768** | **~176** | **~176** | **265.5** | **531.0** |
-
-Mac SoftSpokenMal n=32768 was ~5.6 ms / ~531 KB both-dir → **same communication**, ~**31×** slower time here.
-
-Log: `results/raw/ot_sweep_final.txt` (also earlier `ot_sweep.txt`).
-
-### 3.3 Kyber / MR base OT (**offline / one-time**)
-
-`MasnyRindalKyber`, n=128 (= SoftSpoken `baseOtCount()`).
-
-| Side | Time (typ.) | Comm (one-side bytes) |
-|---|---|---|
-| sender / receiver | ~10–51 ms (jitter) | ~754 KB (~736 KiB) |
-
-**Not** included in online client. Log: Kyber section of `ot_sweep_final.txt`.
-
-### 3.4 STARK
-
-`rustc` **not installed** on this host → **STARK 非本机**.  
-For synthesis we use Mac verify **2.8 ms / batch (m=128)** and label it.
-
-### 3.5 Synthesized Ours online (m=128)
-
-**Working point:** one SoftSpokenMal extension with **n=32768** amortized over **m=128** evals (same as Mac/paper synthesis).
-
-Formulas (unchanged):
-
-```
-online_client_ms/eval ≈ (OT_online_ms / m) + GC_eval_ms + (STARK_verify_ms / m)
-online_comm_KB/eval (tables offline) ≈ OT_both_dir_KB / m
-online_comm_KB/eval (tables online)  ≈ OT_both_dir_KB / m + tables_KB + (proof_KB / m)
-```
-
-Plug-in (this host):
-
-| Input | Value | Source |
-|---|---|---|
-| OT_online_ms | **176** | SoftSpokenMal n=32768 wall (send/recv concurrent) |
-| OT_both_dir_KB | **531.0** | 2 × 265.505 |
-| GC_eval_ms | **0.570** | garble_bench |
-| STARK_verify_ms | **2.8** | Mac (labeled) |
-| tables_KB | **204.78** | garble_bench |
-| proof_KB/m | **≈0** | Mac tables-online ≈210 KB ≈ OT/m + tables |
-
-**Results:**
-
-| Variant | Online client/eval | Online comm/eval | Online rounds | Notes |
-|---|---|---|---|---|
-| Ours (tables offline) | **1.97 ms** = 176/128 + 0.570 + 2.8/128 | **4.15 KB** = 531/128 | **2** | STARK verify 非本机 |
-| Ours (tables online) | **1.97 ms** (same compute path) | **~209 KB** = 4.15 + 204.78 | **2** | tables dominate |
-
-Server offline prove (Mac ~5.2 s/circuit) **not re-measured** here (no STARK).
-
----
-
-## 4. Gold — PR-OPRF PQ malicious (this host)
-
-Repo: `deps/PR-OPRF` (`gconeice/PR-OPRF`), built with `ENABLE_PQ`, `ENABLE_MALICIOUS`, `ENABLE_FINEGRAIN`, SoftSpoken VOLE (`ENABLE_SS`), emp-tool **0.1.0**.
-
-Loopback: party `1` = ALICE/server, party `2` = BOB/client, NetIO on `PORT+1`, libOTe Asio on `PORT`.
-
-### 4.1 Single eval (`test_oprf_test_single_malicious_oprf`, n=1)
-
-| | Server (ALICE) | Client (BOB) |
-|---|---|---|
-| offline_us | 469644 (~470 ms) | 470167 (~470 ms) |
-| offline emp B | 179792 | 28592 |
-| offline libOT sent B | 440869 | 341541 |
-| **online_us** | **629** | **471** |
-| **online emp B** | **2640** | **240** |
-| check | — | **pass** |
-
-- **Online client/eval:** **0.471 ms**
-- **Online server/eval:** **0.629 ms**
-- **Online comm/eval (emp both dirs):** 2640+240 = **2880 B ≈ 2.81 KB** (libOT online delta ≈ 0 after setup)
-- **Online rounds:** interactive online ≈ **3–4** (msg / response / χ / opening); paper FS-style **3** after Fiat–Shamir packaging
-
-Logs: `results/raw/gold_single_client_ok.txt`, `gold_single_server_ok.txt` (also latest `gold_single_*.txt`).
-
-### 4.2 Batch (`test_oprf_test_malicious_oprf`, `ENABLE_SMALLN` → **n=1000**)
-
-`setup` + `setup_malicious` timed as offline; first `batch_eval` still runs **lazy `malicious_offline`** before the FINEGRAIN “Offline point”. **True online** is timed **after** that checkpoint.
-
-| | Server | Client |
-|---|---|---|
-| offline (setup*) | ~7.48 s | ~7.48 s |
-| lazy offline inside first eval (emp Δ to Offline point) | large (~2.2 MB server) | small |
-| **true_online_us / eval** | **1.28 µs** | **15.14 µs** |
-| **true_online emp B / eval** | **48.1** | **48.0** |
-| check | — | **pass** |
-
-- **Online wall/eval ≈ max(sides) ≈ 15 µs** (interactive; client-bound here)
-- **Online emp both dirs ≈ 96.1 B/eval** (~0.094 KB/eval)
-- Amortized offline is **huge** at n=1000 on this 2-vCPU / 2 GiB VM (~7.5 s + multi-MB)
-
-Logs: `results/raw/gold_batch_*.txt`
-
-### 4.3 Classic (non-PQ) Gold
-
-**Not run** in this pass (PQ path was the blocker on macOS; classic deferred). Do not mix paper AWS classic numbers into the same-machine table without a new run.
-
----
-
-## 5. Same-machine final comparison table
-
-**Ours working point:** m=128 (OT n=32768 amortized).  
-**Gold working points:** single n=1; batch n=1000.
-
-| Work | Online rounds | Online comm/eval | Online client/eval | Online server/eval | Verifiability | Notes/source |
-|---|---|---|---|---|---|---|
-| Ours (tables offline) | 2 | **4.15 KB** | **1.97 ms** | (GC+OT server share; STARK prove offline) | public STARK verify | This host OT+GC; STARK verify **Mac** |
-| Ours (tables online) | 2 | **~209 KB** | **1.97 ms** | same | public STARK | tables 204.8 KB/eval |
-| Gold malicious PQ (single) | ~3–4 | **~2.81 KB** (emp) | **0.47 ms** | **0.63 ms** | designated VOLE-ZK | This host, official PR-OPRF |
-| Gold malicious PQ (batch n=1000) | ~3–4 | **~0.094 KB** (emp true-online) | **~0.015 ms** | **~0.001 ms** | designated VOLE-ZK | True-online after Offline point; offline ~7.5 s |
-
-CSV: `results/comparison_table.csv`
-
----
-
-## 5b. Integrated E2E loopback (Phase 0+1) — this host
-
-**Deployment:** both `server` and `client` processes on **this Linux host** (`127.0.0.1`). A Mac laptop is only an SSH operator — **not** a protocol peer (KyberOT is x86-oriented; PQ path stays on Linux).
-
-**Pipeline:** offline Kyber base OT + garble + STARK prove → online SoftSpokenMal OT extension + (optional) tables + `m` GC evals + STARK verify.
-
-**STARK statement:** winterfell `fib_small`-style AIR (`stark-mmo/`, `n=16384`); runnable public-verify stand-in for the paper’s MMO/AES-garbling STARK — **not** a full AES-circuit AIR. Documented honestly below.
-
-### Reproduce
-
-```bash
-cd voprf-bench
-bash build_e2e_linux.sh
-export LD_LIBRARY_PATH="$PWD/deps/libOTe/out/install/linux/lib:$PWD/deps/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+bash build_e2e_linux.sh   # or manual g++ link as in RESULTS history
 bash scripts/run_e2e_loopback.sh offline 19000
-bash scripts/run_e2e_loopback.sh online  19100
+bash scripts/run_e2e_loopback.sh online  19001
+
+# Unit: plaintext + GC == AES-NI
+AES_CIRCUIT=../MP-SPDZ-master/Programs/Circuits/aes_128.txt ./build/test_aes_gc
 ```
 
-### Measured (m=128, n_ot=32768, stark-n=16384)
-
-| Mode | Online client ms | Online ms/eval | Online B (both-dir sock) | Online B/eval | Proof B | check |
-|---|---|---|---|---|---|---|
-| tables **offline** | **226.0** | **1.766** | 310823 (~303.5 KB) | ~2.43 KB | 38887 | pass |
-| tables **online** | **330.0** | **2.578** | 520631 (~508.4 KB) | ~4.07 KB | 38887 | pass |
-
-| Side | Offline ms (offline mode) | Notes |
-|---|---|---|
-| server | ~71 | includes Kyber + garble + prove (~55 ms) |
-| client | ~116 | Kyber + recv tables |
-
-STARK verify on client online path: **~0.36 ms** (this host). Prove offline: **~55–57 ms**.
-
-Logs: `results/raw/e2e_loopback_{offline,online}_{server,client}.txt`
-
-### vs component synthesis (§3.5)
-
-| | Synthesized (OT+GC+Mac STARK) | E2E integrated (tables offline) |
-|---|---|---|
-| Online client/eval | 1.97 ms | **1.77 ms** |
-| Online comm/eval | 4.15 KB (OT only) | **~2.43 KB** sock total/m (OT+proof; one-side accounting differs) |
-
-E2E wall time includes scheduling, proof transfer, and verify; synthesis was a lower-bound sum. Orders of magnitude match on this VM.
-
-### Paper wording tip
-
-- Prefer citing **E2E loopback** for “integrated prototype” online numbers.
-- Keep component rows for OT/GC microbenchmarks.
-- Footnote STARK AIR as fib/MMO-proxy until a full AES-garble AIR is wired.
+**AsioSocket:** do not enable `COPROTO_ASIO_DEBUG` (race → terminate).
 
 ---
 
-## 6. Short analysis (for paper discussion)
+## 4. STARK (Fig.10-style, this host)
 
-1. **Rounds:** Ours stays **2**; Gold online remains **multi-message (~3–4)** even when amortized.
-2. **Small-batch amortization:** Ours quotes **m=128**. Gold’s sub-KB / ~15 µs online at **n=1000** still sits on **multi-second + multi-MB offline** on this host; do **not** compare Gold’s 1.9 KB paper figure (large-n AWS) to Ours m=128 without stating n.
-3. **Verifiability:** Ours = **public** STARK verify (`stark-mmo` on this host); Gold = **designated** VOLE-ZK verifier.
-4. **Honest disadvantages (Ours):** tables-online communication; server STARK prove offline (~55 ms here for proxy AIR; paper AES-AIR prove is larger).
-5. **vs Mac baseline:** OT time ~31× slower; GC eval ~8.6× slower; OT bytes match. **Do not** drop Mac numbers into this table as “same machine.”
-6. **Mac as client:** not used for PQ E2E (KyberOT). Use Linux↔Linux (loopback or two Linux hosts) for WAN later.
-
-### Can these replace paper Table V Ours/Gold rows?
-
-**Yes, for a Linux/x86 same-machine column**, with footnotes:
-
-- Prefer **§5b E2E** for integrated online Ours; component synthesis remains supporting evidence;
-- STARK is a winterfell fib/MMO-proxy AIR (public verify), not full AES-circuit;
-- Gold classic optional row missing;
-- This VM is **not** representative of a high-end client (2 vCPU / 2 GiB).
-
----
-
-## 7. Raw artifacts
-
-| File | Content |
+| Metric | Value |
 |---|---|
-| `results/raw/machine.txt` | uname / lscpu / memory |
-| `results/raw/garble_bench.txt` | GC bench |
-| `results/raw/ot_sweep_final.txt` | OT sweep + Kyber |
-| `results/raw/gold_single_*_ok.txt` | Gold single |
-| `results/raw/gold_batch_*.txt` | Gold batch n=1000 |
-| `results/raw/e2e_loopback_*.txt` | Integrated E2E |
-| `results/comparison_table.csv` | Final table |
+| AIR | half-gate Tg/Te bit constraints + cm/H(GC)/R binding |
+| Field | winterfell f64::BaseElement |
+| Params | queries=27, blowup=8, grinding=16, FRI fold=8 |
+| Trace | \(6400\times 128 \to 2^{20}\) rows |
+| Prove | **~30.7 s** / circuit-0 witness |
+| Verify | **~0.74 ms** |
+| Proof size | **~80 KiB** (~80525 B) |
+
+Negative: tampering embedded `H(GC)` in proof blob → binding check fails.  
+Logs: `results/raw/stark_prove_one.txt`, `stark_verify_one.txt`
+
+Paper Mac reference (~5 s prove / ~3 ms verify / circuit): same order of magnitude for verify; prove slower here (bit-expanded AIR + different params).
+
+---
+
+## 5. Loopback E2E (\(m=128\)) — this host via qemu
+
+### tables offline
+
+| Side | offline_ms | online_ms | online_ms/eval | online_B | online_B/eval |
+|---|---|---|---|---|---|
+| client | 32950 | 616 | 4.81 | 1667342 | 13026 |
+| server | (same session) | | | | |
+
+- `plaintext_Fk_match: 128/128`  
+- `stark_ok: 1`, `bind_ok: 1`, `check: pass`  
+- Logs: `results/raw/e2e_loopback_offline_{server,client}.txt`
+
+### tables online
+
+| Side | online_ms | online_ms/eval | notes |
+|---|---|---|---|
+| client/server | 745 | 5.82 | tables + OT + proof online |
+
+- `plaintext_Fk_match: 128/128`, `check: pass`  
+- Logs: `results/raw/e2e_loopback_online_{server,client}.txt`
+
+Online ≈ **2 rounds**; Kyber base OT counted in offline.
+
+---
+
+## 6. Cut from Fib / synthesis
+
+| Old (Fib E2E) | New (Route B) |
+|---|---|
+| Synthetic AND chain | Bristol AES-128 GC |
+| OT touched only | OT pads → share labels → EvalGC |
+| Fib AIR | half-gate garbling AIR |
+| `check: pass` = Fib verify | `check: pass` = STARK + \(y=F_k(x)\) |
+
+---
+
+## 7. Notes
+
+- Bristol gate counts differ slightly from paper’s ~6553 AND / 24000 XOR; correctness vs AES-NI verified.  
+- Host CPU lacks AVX2; timings include qemu TCG overhead for OT/GC path. STARK prove/verify run as native Rust (spawned) but may be invoked from qemu parent.  
+- `stark-mmo-fib-stub/` retained for archaeology only.

@@ -1,0 +1,101 @@
+bash: /home/cl/miniconda3/envs/voprf-bench/lib/libtinfo.so.6: no version information available (required by bash)
+SERVER_PID=904566 m=2 n=512 tables=offline
+LISTENING
+CLIENT_EXIT=0
+=== SERVER ===
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.pcid [bit 17]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.x2apic [bit 21]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.tsc-deadline [bit 24]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.hle [bit 4]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.invpcid [bit 10]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.rtm [bit 11]
+voprf_e2e role=server ip=127.0.0.1 port=19121 m=2 n_ot=512 tables=offline
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.pcid [bit 17]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.x2apic [bit 21]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.tsc-deadline [bit 24]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.hle [bit 4]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.invpcid [bit 10]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.rtm [bit 11]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.pcid [bit 17]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.x2apic [bit 21]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.tsc-deadline [bit 24]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.hle [bit 4]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.invpcid [bit 10]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.rtm [bit 11]
+role: server
+protocol: GC-VOPRF-Fig9-10
+tables_mode: offline
+m: 2
+n_ot: 512
+n_and: 6400
+n_xor: 30263
+tables_bytes_one: 207096
+proof_bytes: 80109
+offline_ms: 31316.703
+offline_B: 1170224
+online_ms: 75.413
+online_ms_per_eval: 37.707
+online_B: 114606
+online_rounds: 2
+verify_ok: 1
+stark_prove_log:
+prove: ok
+n_and: 6400
+trace_rows: 1048576
+proof_bytes: 80109
+prove_ms: 30742.182
+gc_hash: 335bb7ad3df4d1eb9b6bbe5785b66a5cc7e4f66c3db94bbfa785e155eb4f5431
+R_root: c7c761bf051c6d14371f7d30a545ea6e7c1e1a1fe3cd960189a0ee6869c0fbc7
+binding: 33d10e80ffc89d1513d44538523e9dc098eef040c6a67f1e912e647d7578d4ed
+air: halfgate-garble+keycm-binding
+check: pass
+=== CLIENT ===
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.pcid [bit 17]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.x2apic [bit 21]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.tsc-deadline [bit 24]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.hle [bit 4]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.invpcid [bit 10]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.rtm [bit 11]
+voprf_e2e role=client ip=127.0.0.1 port=19121 m=2 n_ot=512 tables=offline
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.pcid [bit 17]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.x2apic [bit 21]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.tsc-deadline [bit 24]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.hle [bit 4]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.invpcid [bit 10]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.rtm [bit 11]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.pcid [bit 17]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.x2apic [bit 21]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.01H:ECX.tsc-deadline [bit 24]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.hle [bit 4]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.invpcid [bit 10]
+qemu-x86_64-static: warning: TCG doesn't support requested feature: CPUID.07H:EBX.rtm [bit 11]
+role: client
+protocol: GC-VOPRF-Fig9-10
+tables_mode: offline
+m: 2
+n_ot: 512
+H1H2: SHA-256
+probe_resilient: s=2 n=256
+offline_ms: 31317.232
+offline_B: 1170224
+online_ms: 75.602
+online_ms_per_eval: 37.801
+online_B: 114606
+online_B_per_eval: 57303.000
+online_rounds: 2
+stark_ok: 1
+bind_ok: 1
+fk_gc_evals: 2
+plaintext_Fk_match: 2/2
+proof_bytes: 80109
+stark_verify_log:
+verify: ok
+verify_ms: 0.758
+n_and: 6400
+gc_hash: 335bb7ad3df4d1eb9b6bbe5785b66a5cc7e4f66c3db94bbfa785e155eb4f5431
+R_root: c7c761bf051c6d14371f7d30a545ea6e7c1e1a1fe3cd960189a0ee6869c0fbc7
+binding: 33d10e80ffc89d1513d44538523e9dc098eef040c6a67f1e912e647d7578d4ed
+air: halfgate-garble+keycm-binding
+y0: fd3197e5ccace78e3c928f4f3856911f43f6baef929496934bd8ab8a299da662
+check: pass
+RUN_EXIT:0

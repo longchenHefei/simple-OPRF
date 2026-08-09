@@ -15,6 +15,9 @@ deps/
 **/garble_bench
 **/ot_bench
 stark-mmo/target/
+stark-garble/target/
+stark-mmo-fib-stub/target/
+deps/bin/
 
 # Editor / OS
 .DS_Store

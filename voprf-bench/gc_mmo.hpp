@@ -1,11 +1,16 @@
-// Half-gates + fixed-key AES-128 (MMO) garble/eval.
-// Synthetic AES-128-scale circuit: 6553 AND + 24000 XOR.
-// Linux/x86: AES-NI; falls back to portable AES if unavailable.
+// Bristol Fashion AES-128 datapath GC with half-gates + fixed-key AES MMO.
+// Circuit: MP-SPDZ aes_128.txt (key||pt -> ct). KeySchedule is inside Bristol;
+// server still computes local KeySchedule for STARK key-wire / cm binding.
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <cstring>
+#include <fstream>
 #include <random>
+#include <sstream>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 #if defined(__AES__) || defined(__AES)
@@ -19,6 +24,7 @@
 namespace gc_mmo {
 
 using u64 = uint64_t;
+using u32 = uint32_t;
 using u8 = uint8_t;
 
 struct Block {
@@ -44,6 +50,10 @@ inline Block random_block(std::mt19937_64& rng) {
     Block d;
     for (int i = 0; i < 16; ++i) d.b[i] = static_cast<u8>(rng() & 0xff);
     return d;
+}
+
+inline bool blocks_eq(const Block& a, const Block& b) {
+    return memcmp(a.b, b.b, 16) == 0;
 }
 
 #if GC_MMO_HAVE_AESNI
@@ -109,42 +119,49 @@ struct FixedKeyAES {
         memcpy(rk[0], key.b, 16);
         for (int r = 1; r <= 10; ++r) {
             u8 t[4];
-            t[0] = SBOX[rk[r-1][13]] ^ RCON[r];
-            t[1] = SBOX[rk[r-1][14]];
-            t[2] = SBOX[rk[r-1][15]];
-            t[3] = SBOX[rk[r-1][12]];
-            for (int i = 0; i < 4; ++i) rk[r][i] = rk[r-1][i] ^ t[i];
-            for (int i = 4; i < 16; ++i) rk[r][i] = rk[r-1][i] ^ rk[r][i-4];
-        }
-    }
-    static void sub_bytes(u8 s[16]) { for (int i = 0; i < 16; ++i) s[i] = SBOX[s[i]]; }
-    static void shift_rows(u8 s[16]) {
-        u8 t;
-        t=s[1]; s[1]=s[5]; s[5]=s[9]; s[9]=s[13]; s[13]=t;
-        t=s[2]; s[2]=s[10]; s[10]=t; t=s[6]; s[6]=s[14]; s[14]=t;
-        t=s[15]; s[15]=s[11]; s[11]=s[7]; s[7]=s[3]; s[3]=t;
-    }
-    static u8 xtime(u8 x) { return static_cast<u8>((x<<1) ^ ((x&0x80)?0x1b:0)); }
-    static void mix_columns(u8 s[16]) {
-        for (int c = 0; c < 4; ++c) {
-            u8* col = s + 4*c;
-            u8 a0=col[0],a1=col[1],a2=col[2],a3=col[3];
-            u8 t = a0^a1^a2^a3;
-            col[0]^=t^xtime(a0^a1); col[1]^=t^xtime(a1^a2);
-            col[2]^=t^xtime(a2^a3); col[3]^=t^xtime(a3^a0);
+            t[0] = SBOX[rk[r - 1][13]] ^ RCON[r];
+            t[1] = SBOX[rk[r - 1][14]];
+            t[2] = SBOX[rk[r - 1][15]];
+            t[3] = SBOX[rk[r - 1][12]];
+            for (int i = 0; i < 4; ++i) rk[r][i] = rk[r - 1][i] ^ t[i];
+            for (int i = 4; i < 16; ++i) rk[r][i] = rk[r - 1][i] ^ rk[r][i - 4];
         }
     }
     Block encrypt(const Block& in) const {
         u8 s[16];
         memcpy(s, in.b, 16);
         for (int i = 0; i < 16; ++i) s[i] ^= rk[0][i];
+        auto sub_bytes = [](u8 st[16]) { for (int i = 0; i < 16; ++i) st[i] = SBOX[st[i]]; };
+        auto shift_rows = [](u8 st[16]) {
+            u8 t;
+            t = st[1]; st[1] = st[5]; st[5] = st[9]; st[9] = st[13]; st[13] = t;
+            t = st[2]; st[2] = st[10]; st[10] = t; t = st[6]; st[6] = st[14]; st[14] = t;
+            t = st[15]; st[15] = st[11]; st[11] = st[7]; st[7] = st[3]; st[3] = t;
+        };
+        auto xtime = [](u8 x) -> u8 { return static_cast<u8>((x << 1) ^ ((x & 0x80) ? 0x1b : 0)); };
+        auto mix_columns = [&](u8 st[16]) {
+            for (int c = 0; c < 4; ++c) {
+                u8* col = st + 4 * c;
+                u8 a0 = col[0], a1 = col[1], a2 = col[2], a3 = col[3];
+                u8 t = a0 ^ a1 ^ a2 ^ a3;
+                col[0] ^= t ^ xtime(a0 ^ a1);
+                col[1] ^= t ^ xtime(a1 ^ a2);
+                col[2] ^= t ^ xtime(a2 ^ a3);
+                col[3] ^= t ^ xtime(a3 ^ a0);
+            }
+        };
         for (int r = 1; r < 10; ++r) {
-            sub_bytes(s); shift_rows(s); mix_columns(s);
+            sub_bytes(s);
+            shift_rows(s);
+            mix_columns(s);
             for (int i = 0; i < 16; ++i) s[i] ^= rk[r][i];
         }
-        sub_bytes(s); shift_rows(s);
+        sub_bytes(s);
+        shift_rows(s);
         for (int i = 0; i < 16; ++i) s[i] ^= rk[10][i];
-        Block out; memcpy(out.b, s, 16); return out;
+        Block out;
+        memcpy(out.b, s, 16);
+        return out;
     }
 };
 #endif
@@ -163,90 +180,322 @@ inline Block tweak(const Block& x, u64 gid, u8 t) {
     return y;
 }
 
+enum class GateType : u8 { XOR = 0, AND = 1, INV = 2 };
+
+struct Gate {
+    GateType type;
+    u32 in0 = 0, in1 = 0, out = 0;
+};
+
+struct Circuit {
+    u64 n_gates = 0;
+    u64 n_wires = 0;
+    u64 n_input0 = 0; // garbler / key bits
+    u64 n_input1 = 0; // evaluator / plaintext bits
+    u64 n_output = 0;
+    u64 n_and = 0;
+    u64 n_xor = 0;
+    std::vector<Gate> gates;
+    std::vector<u32> output_wires;
+};
+
+inline Circuit load_bristol(const std::string& path) {
+    std::ifstream in(path);
+    if (!in) throw std::runtime_error("cannot open circuit: " + path);
+    Circuit c;
+    in >> c.n_gates >> c.n_wires;
+    u64 nin = 0;
+    in >> nin >> c.n_input0 >> c.n_input1;
+    if (nin != 2) throw std::runtime_error("expected 2 input bundles");
+    u64 nout = 0;
+    in >> nout >> c.n_output;
+    if (nout != 1) throw std::runtime_error("expected 1 output bundle");
+    c.gates.reserve(c.n_gates);
+    std::string line;
+    std::getline(in, line); // rest of line
+    while (std::getline(in, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        std::istringstream ss(line);
+        int nin_g = 0, nout_g = 0;
+        ss >> nin_g >> nout_g;
+        if (!ss) continue;
+        Gate g{};
+        if (nin_g == 2 && nout_g == 1) {
+            u32 a, b, o;
+            std::string op;
+            ss >> a >> b >> o >> op;
+            g.in0 = a;
+            g.in1 = b;
+            g.out = o;
+            if (op == "XOR" || op == "xor") {
+                g.type = GateType::XOR;
+                c.n_xor++;
+            } else if (op == "AND" || op == "and") {
+                g.type = GateType::AND;
+                c.n_and++;
+            } else {
+                throw std::runtime_error("unknown gate: " + op);
+            }
+        } else if (nin_g == 1 && nout_g == 1) {
+            u32 a, o;
+            std::string op;
+            ss >> a >> o >> op;
+            g.in0 = a;
+            g.in1 = a;
+            g.out = o;
+            if (op == "INV" || op == "NOT" || op == "inv" || op == "not") {
+                g.type = GateType::INV;
+                c.n_xor++; // free NOT via XOR delta
+            } else {
+                throw std::runtime_error("unknown unary gate: " + op);
+            }
+        } else {
+            throw std::runtime_error("unsupported gate arity in: " + line);
+        }
+        c.gates.push_back(g);
+    }
+    if (c.gates.size() != c.n_gates)
+        throw std::runtime_error("gate count mismatch");
+    u64 out_start = c.n_wires - c.n_output;
+    c.output_wires.resize(c.n_output);
+    for (u64 i = 0; i < c.n_output; ++i) c.output_wires[i] = static_cast<u32>(out_start + i);
+    return c;
+}
+
+// Plaintext boolean evaluation of Bristol circuit.
+inline std::vector<u8> eval_circuit_plain(const Circuit& c, const std::vector<u8>& in_bits) {
+    if (in_bits.size() != c.n_input0 + c.n_input1)
+        throw std::runtime_error("plain eval: bad input size");
+    std::vector<u8> w(c.n_wires, 0);
+    for (size_t i = 0; i < in_bits.size(); ++i) w[i] = in_bits[i] & 1;
+    for (const auto& g : c.gates) {
+        if (g.type == GateType::XOR) w[g.out] = w[g.in0] ^ w[g.in1];
+        else if (g.type == GateType::AND) w[g.out] = w[g.in0] & w[g.in1];
+        else w[g.out] = w[g.in0] ^ 1;
+    }
+    std::vector<u8> out(c.n_output);
+    for (u64 i = 0; i < c.n_output; ++i) out[i] = w[c.output_wires[i]];
+    return out;
+}
+
+// Bristol Fashion AES bit order: wire 0 = LSB of 128-bit big-endian block
+// (MSB of byte0 is wire 127). Empirically matches aes_128.txt vs AES-NI.
+inline Block bits128_to_block(const u8* bits /*128*/) {
+    u8 be_bits[128];
+    for (int i = 0; i < 128; ++i) be_bits[i] = bits[127 - i] & 1;
+    Block out{};
+    for (int i = 0; i < 128; ++i) {
+        if (be_bits[i]) out.b[i / 8] |= static_cast<u8>(1u << (7 - (i % 8)));
+    }
+    return out;
+}
+
+inline void block_to_bits128(const Block& bl, u8* bits /*128*/) {
+    u8 be_bits[128];
+    for (int i = 0; i < 128; ++i) be_bits[i] = (bl.b[i / 8] >> (7 - (i % 8))) & 1;
+    for (int i = 0; i < 128; ++i) bits[i] = be_bits[127 - i];
+}
+
 struct AndGateTable {
     Block T0, T1;
 };
 
-struct Circuit {
-    u64 n_and = 6553;
-    u64 n_xor = 24000;
+struct HalfGateWitness {
+    Block a0, b0;     // zero labels of AND inputs
+    Block Tg, Te;     // table
+    Block Ha0, Ha1, Hb0, Hb1;
+    u8 pa = 0, pb = 0;
 };
 
 struct GarbleResult {
     std::vector<AndGateTable> tables;
+    std::vector<HalfGateWitness> and_wit; // for STARK
+    std::vector<Block> wire0;             // zero-label per wire
     Block delta;
-    Block inA0, inB0;
-    Block aes_key;
+    Block aes_key; // fixed-key for MMO
+    std::vector<u8> out_decode;           // LSB of zero-label for each output wire (point-and-permute decode)
+    std::array<u8, 32> gc_hash{};         // H(GC tables)
+    std::array<u8, 32> R_root{};          // Merkle root of evaluator input label pairs
 };
 
-inline GarbleResult garble(const Circuit& c, const FixedKeyAES& aes, std::mt19937_64& rng) {
+inline std::array<u8, 32> sha256_bytes(const u8* data, size_t len); // defined after include guard helper
+
+} // namespace gc_mmo
+
+#include <openssl/sha.h>
+
+namespace gc_mmo {
+
+inline std::array<u8, 32> sha256_bytes(const u8* data, size_t len) {
+    std::array<u8, 32> out{};
+    SHA256(data, len, out.data());
+    return out;
+}
+
+inline std::array<u8, 32> merkle_root_pairs(const std::vector<std::array<Block, 2>>& pairs) {
+    if (pairs.empty()) {
+        return sha256_bytes(nullptr, 0);
+    }
+    std::vector<std::array<u8, 32>> level;
+    level.reserve(pairs.size());
+    for (auto& p : pairs) {
+        u8 buf[32];
+        memcpy(buf, p[0].b, 16);
+        memcpy(buf + 16, p[1].b, 16);
+        level.push_back(sha256_bytes(buf, 32));
+    }
+    while (level.size() > 1) {
+        if (level.size() & 1) level.push_back(level.back());
+        std::vector<std::array<u8, 32>> next;
+        next.reserve(level.size() / 2);
+        for (size_t i = 0; i < level.size(); i += 2) {
+            u8 buf[64];
+            memcpy(buf, level[i].data(), 32);
+            memcpy(buf + 32, level[i + 1].data(), 32);
+            next.push_back(sha256_bytes(buf, 64));
+        }
+        level.swap(next);
+    }
+    return level[0];
+}
+
+inline GarbleResult garble_circuit(const Circuit& c, const Block& mmo_key, const FixedKeyAES& aes,
+                                   std::mt19937_64& rng) {
     GarbleResult gr;
     gr.delta = make_delta(rng);
-    gr.inA0 = random_block(rng);
-    if (lsb(gr.inA0)) gr.inA0 = xor_block(gr.inA0, gr.delta);
-    gr.inB0 = random_block(rng);
-    if (lsb(gr.inB0)) gr.inB0 = xor_block(gr.inB0, gr.delta);
-    gr.tables.resize(c.n_and);
-
-    Block a0 = gr.inA0, b0 = gr.inB0;
-    Block a1 = xor_block(a0, gr.delta);
-    Block b1 = xor_block(b0, gr.delta);
-
-    for (u64 i = 0; i < c.n_and; ++i) {
-        bool pa = lsb(a0);
-        bool pb = lsb(b0);
-        Block Ha0 = mmo_hash(aes, tweak(a0, i, 0));
-        Block Ha1 = mmo_hash(aes, tweak(a1, i, 0));
-        Block Tg = xor_block(Ha0, Ha1);
-        if (pb) Tg = xor_block(Tg, gr.delta);
-        Block wg0 = Ha0;
-        if (pa) wg0 = xor_block(wg0, Tg);
-
-        Block Hb0 = mmo_hash(aes, tweak(b0, i, 1));
-        Block Hb1 = mmo_hash(aes, tweak(b1, i, 1));
-        Block Te = xor_block(Hb0, Hb1);
-        Te = xor_block(Te, a0);
-        Block we0 = Hb0;
-        if (pb) we0 = xor_block(we0, xor_block(Te, a0));
-
-        Block w0 = xor_block(wg0, we0);
-        gr.tables[i] = {Tg, Te};
-
-        a0 = w0;
-        if (lsb(a0)) a0 = xor_block(a0, gr.delta);
-        a1 = xor_block(a0, gr.delta);
-        b0 = xor_block(b0, w0);
-        if ((i % 4) == 0) b0 = xor_block(b0, gr.inB0);
-        if (lsb(b0)) b0 = xor_block(b0, gr.delta);
-        b1 = xor_block(b0, gr.delta);
+    gr.aes_key = mmo_key;
+    gr.wire0.assign(c.n_wires, Block{});
+    for (u64 i = 0; i < c.n_input0 + c.n_input1; ++i) {
+        gr.wire0[i] = random_block(rng);
+        if (lsb(gr.wire0[i])) gr.wire0[i] = xor_block(gr.wire0[i], gr.delta);
     }
-    (void)c.n_xor;
+    gr.tables.reserve(c.n_and);
+    gr.and_wit.reserve(c.n_and);
+    u64 and_id = 0;
+    for (const auto& g : c.gates) {
+        if (g.type == GateType::XOR) {
+            gr.wire0[g.out] = xor_block(gr.wire0[g.in0], gr.wire0[g.in1]);
+        } else if (g.type == GateType::INV) {
+            // Free-NOT: swap labels so evaluator is a no-op (w_out = w_in).
+            gr.wire0[g.out] = xor_block(gr.wire0[g.in0], gr.delta);
+        } else { // AND half-gates
+            Block a0 = gr.wire0[g.in0];
+            Block b0 = gr.wire0[g.in1];
+            Block a1 = xor_block(a0, gr.delta);
+            Block b1 = xor_block(b0, gr.delta);
+            bool pa = lsb(a0);
+            bool pb = lsb(b0);
+            Block Ha0 = mmo_hash(aes, tweak(a0, and_id, 0));
+            Block Ha1 = mmo_hash(aes, tweak(a1, and_id, 0));
+            Block Tg = xor_block(Ha0, Ha1);
+            if (pb) Tg = xor_block(Tg, gr.delta);
+            Block wg0 = Ha0;
+            if (pa) wg0 = xor_block(wg0, Tg);
+
+            Block Hb0 = mmo_hash(aes, tweak(b0, and_id, 1));
+            Block Hb1 = mmo_hash(aes, tweak(b1, and_id, 1));
+            Block Te = xor_block(Hb0, Hb1);
+            Te = xor_block(Te, a0);
+            Block we0 = Hb0;
+            if (pb) we0 = xor_block(we0, xor_block(Te, a0));
+
+            Block w0 = xor_block(wg0, we0);
+            gr.wire0[g.out] = w0;
+
+            AndGateTable tab{Tg, Te};
+            gr.tables.push_back(tab);
+            HalfGateWitness wit;
+            wit.a0 = a0;
+            wit.b0 = b0;
+            wit.Tg = Tg;
+            wit.Te = Te;
+            wit.Ha0 = Ha0;
+            wit.Ha1 = Ha1;
+            wit.Hb0 = Hb0;
+            wit.Hb1 = Hb1;
+            wit.pa = pa ? 1 : 0;
+            wit.pb = pb ? 1 : 0;
+            gr.and_wit.push_back(wit);
+            and_id++;
+        }
+    }
+
+    gr.out_decode.resize(c.n_output);
+    for (u64 i = 0; i < c.n_output; ++i) {
+        gr.out_decode[i] = lsb(gr.wire0[c.output_wires[i]]) ? 1 : 0;
+    }
+
+    std::vector<u8> gc_bytes;
+    gc_bytes.reserve(gr.tables.size() * 32);
+    for (auto& t : gr.tables) {
+        gc_bytes.insert(gc_bytes.end(), t.T0.b, t.T0.b + 16);
+        gc_bytes.insert(gc_bytes.end(), t.T1.b, t.T1.b + 16);
+    }
+    gr.gc_hash = sha256_bytes(gc_bytes.data(), gc_bytes.size());
+
+    std::vector<std::array<Block, 2>> pairs(c.n_input1);
+    for (u64 i = 0; i < c.n_input1; ++i) {
+        Block z = gr.wire0[c.n_input0 + i];
+        pairs[i] = {z, xor_block(z, gr.delta)};
+    }
+    gr.R_root = merkle_root_pairs(pairs);
     return gr;
 }
 
-inline Block evaluate(const Circuit& c, const FixedKeyAES& aes, const GarbleResult& gr,
-                      bool bit_a, bool bit_b) {
-    Block a = bit_a ? xor_block(gr.inA0, gr.delta) : gr.inA0;
-    Block b = bit_b ? xor_block(gr.inB0, gr.delta) : gr.inB0;
-    Block wa = a, wb = b;
-    for (u64 i = 0; i < c.n_and; ++i) {
-        const AndGateTable& T = gr.tables[i];
-        bool sa = lsb(wa);
-        bool sb = lsb(wb);
-        Block Hg = mmo_hash(aes, tweak(wa, i, 0));
-        Block wg = Hg;
-        if (sa) wg = xor_block(wg, T.T0);
-        Block He = mmo_hash(aes, tweak(wb, i, 1));
-        Block we = He;
-        if (sb) we = xor_block(we, xor_block(T.T1, wa));
-        Block w = xor_block(wg, we);
-        wa = w;
-        wb = xor_block(wb, w);
-        if ((i % 4) == 0) wb = xor_block(wb, b);
-        (void)c.n_xor;
-    }
-    return wa;
+inline Block label_for_bit(const Block& wire0, const Block& delta, u8 bit) {
+    return bit ? xor_block(wire0, delta) : wire0;
 }
+
+// Evaluate GC given active labels on all input wires.
+inline std::vector<Block> eval_circuit_labels(const Circuit& c, const FixedKeyAES& aes,
+                                              const GarbleResult& gr,
+                                              const std::vector<Block>& input_labels) {
+    if (input_labels.size() != c.n_input0 + c.n_input1)
+        throw std::runtime_error("eval: bad input label count");
+    std::vector<Block> w(c.n_wires);
+    for (size_t i = 0; i < input_labels.size(); ++i) w[i] = input_labels[i];
+    u64 and_id = 0;
+    for (const auto& g : c.gates) {
+        if (g.type == GateType::XOR) {
+            w[g.out] = xor_block(w[g.in0], w[g.in1]);
+        } else if (g.type == GateType::INV) {
+            w[g.out] = w[g.in0]; // free-NOT: labels pre-swapped at garble
+        } else {
+            const AndGateTable& T = gr.tables[and_id];
+            Block wa = w[g.in0];
+            Block wb = w[g.in1];
+            bool sa = lsb(wa);
+            bool sb = lsb(wb);
+            Block Hg = mmo_hash(aes, tweak(wa, and_id, 0));
+            Block wg = Hg;
+            if (sa) wg = xor_block(wg, T.T0);
+            Block He = mmo_hash(aes, tweak(wb, and_id, 1));
+            Block we = He;
+            if (sb) we = xor_block(we, xor_block(T.T1, wa));
+            w[g.out] = xor_block(wg, we);
+            and_id++;
+        }
+    }
+    std::vector<Block> outs(c.n_output);
+    for (u64 i = 0; i < c.n_output; ++i) outs[i] = w[c.output_wires[i]];
+    return outs;
+}
+
+// Decode output bits using point-and-permute vs out_decode (LSB of zero label).
+inline std::vector<u8> decode_outputs(const GarbleResult& gr, const std::vector<Block>& out_labels) {
+    std::vector<u8> bits(out_labels.size());
+    for (size_t i = 0; i < out_labels.size(); ++i) {
+        u8 p = lsb(out_labels[i]) ? 1 : 0;
+        bits[i] = p ^ gr.out_decode[i];
+    }
+    return bits;
+}
+
+// Compatibility stubs for old synthetic API used by garble_bench.
+struct CircuitCompat {
+    u64 n_and = 6553;
+    u64 n_xor = 24000;
+};
 
 inline u64 tables_bytes(const GarbleResult& gr) {
     return gr.tables.size() * sizeof(AndGateTable);

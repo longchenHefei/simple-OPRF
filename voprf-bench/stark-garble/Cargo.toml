@@ -1,0 +1,11 @@
+[package]
+name = "stark-garble"
+version = "0.1.0"
+edition = "2021"
+description = "Fig.10-style STARK: half-gate garbling correctness + key commitment binding (not Fib)"
+
+[dependencies]
+winterfell = "0.9"
+clap = { version = "4", features = ["derive"] }
+sha2 = "0.10"
+hex = "0.4"
