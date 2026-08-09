@@ -1,0 +1,5 @@
+Work,Online_rounds,Online_comm_per_eval,Online_client_per_eval,Online_server_per_eval,Verifiability,Notes
+Ours_tables_offline,2,4.15_KB,1.97_ms,n/a_STARK_prove_offline,public_STARK,"m=128; OT n=32768; STARK verify from Mac 2.8ms"
+Ours_tables_online,2,209_KB,1.97_ms,n/a_STARK_prove_offline,public_STARK,"tables 204.78 KiB/eval + OT amortized"
+Gold_PQ_malicious_single,~3-4,2.81_KB,0.471_ms,0.629_ms,designated_VOLE_ZK,"PR-OPRF ENABLE_PQ; this host loopback"
+Gold_PQ_malicious_batch_n1000,~3-4,0.094_KB,0.015_ms,0.001_ms,designated_VOLE_ZK,"true_online after Offline point; offline ~7.5s"

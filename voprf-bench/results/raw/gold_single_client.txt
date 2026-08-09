@@ -1,0 +1,22 @@
+connected
+
+------------ TEST NON-BATCHED MALICIOUS 2PC-GOLD ------------
+
+Preparing zk coeffients require 29 us
+offline_us: 470167
+offline_emp_B: 28592
+offline_libOT_sent_B: 341541
+VOLE generations:
+communication (B): 28592
+comm. libOT (B): 341541
+Offline point:
+communication (B): 28784
+comm. libOT (B): 341541
+online_us: 471
+online_emp_B: 240
+online_libOT_sent_B: 0
+oprf eval: 470693 us
+communication (B): 28832
+comm. libOT (B): 341541
+correctness checking...
+check pass

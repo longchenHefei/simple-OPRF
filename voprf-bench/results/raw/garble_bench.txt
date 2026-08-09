@@ -1,0 +1,9 @@
+sink: 7
+garble_bench (half-gates + MMO AES-128)
+AES backend: AES-NI
+circuit: AND=6553 XOR=24000 (synthetic AES-128 scale)
+trials: 128
+garble_ms_per_circuit: 0.508733
+eval_ms_per_circuit: 0.569570
+tables_bytes: 209696 (204.78 KiB)
+tables_KB: 204.781

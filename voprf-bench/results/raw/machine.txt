@@ -1,0 +1,18 @@
+=== MACHINE ===
+Linux pqc-research-node 6.1.0-49-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.174-1 (2026-05-26) x86_64 GNU/Linux
+Architecture:                            x86_64
+CPU(s):                                  2
+On-line CPU(s) list:                     0,1
+Model name:                              AMD EPYC 9655P 96-Core Processor
+BIOS Model name:                         pc-q35-9.2  CPU @ 2.0GHz
+Thread(s) per core:                      1
+Core(s) per socket:                      2
+Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw perfctr_core invpcid_single ssbd perfmon_v2 ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 clzero xsaveerptr wbnoinvd arat avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid movdiri movdir64b overflow_recov succor avx512_vp2intersect flush_l1d arch_capabilities
+NUMA node0 CPU(s):                       0,1
+               total        used        free      shared  buff/cache   available
+Mem:           1.9Gi       903Mi       507Mi       788Ki       740Mi       1.0Gi
+Swap:          5.0Gi          0B       5.0Gi
+Debian clang version 19.1.7 (3~deb12u1)
+AVX2: yes
+AVX512: yes
+AES: yes

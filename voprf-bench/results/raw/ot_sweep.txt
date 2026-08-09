@@ -1,0 +1,49 @@
+=== OT EXT SWEEP ALIGNED 2026-08-09T14:10:00+00:00 ===
+----- n=128 -----
+ot_bench SoftSpokenMalOtExt (malicious SoftSpoken 1-of-2) n=128 trials=3
+OT_EXT SoftSpokenMal receiver n=128 trial=0 ms=137.168 us_per_ot=1071.624 total_B=10757 total_KB=10.505 baseOtCount=128
+OT_EXT SoftSpokenMal sender n=128 trial=0 ms=181.102 us_per_ot=1414.861 total_B=10757 total_KB=10.505 baseOtCount=128
+OT_EXT SoftSpokenMal receiver n=128 trial=1 ms=188.220 us_per_ot=1470.468 total_B=10757 total_KB=10.505 baseOtCount=128
+OT_EXT SoftSpokenMal sender n=128 trial=1 ms=184.049 us_per_ot=1437.880 total_B=10757 total_KB=10.505 baseOtCount=128
+OT_EXT SoftSpokenMal receiver n=128 trial=2 ms=184.048 us_per_ot=1437.875 total_B=10757 total_KB=10.505 baseOtCount=128
+OT_EXT SoftSpokenMal sender n=128 trial=2 ms=184.078 us_per_ot=1438.108 total_B=10757 total_KB=10.505 baseOtCount=128
+----- n=256 -----
+ot_bench SoftSpokenMalOtExt (malicious SoftSpoken 1-of-2) n=256 trials=3
+terminate called without an active exception
+FAIL n=256
+----- n=512 -----
+ot_bench SoftSpokenMalOtExt (malicious SoftSpoken 1-of-2) n=512 trials=3
+OT_EXT SoftSpokenMal receiver n=512 trial=0 ms=133.138 us_per_ot=260.035 total_B=13829 total_KB=13.505 baseOtCount=128
+OT_EXT SoftSpokenMal sender n=512 trial=0 ms=177.063 us_per_ot=345.827 total_B=13829 total_KB=13.505 baseOtCount=128
+OT_EXT SoftSpokenMal receiver n=512 trial=1 ms=183.948 us_per_ot=359.273 total_B=13829 total_KB=13.505 baseOtCount=128
+OT_EXT SoftSpokenMal sender n=512 trial=1 ms=187.950 us_per_ot=367.090 total_B=13829 total_KB=13.505 baseOtCount=128
+OT_EXT SoftSpokenMal receiver n=512 trial=2 ms=179.993 us_per_ot=351.549 total_B=13829 total_KB=13.505 baseOtCount=128
+OT_EXT SoftSpokenMal sender n=512 trial=2 ms=184.015 us_per_ot=359.405 total_B=13829 total_KB=13.505 baseOtCount=128
+----- n=1024 -----
+ot_bench SoftSpokenMalOtExt (malicious SoftSpoken 1-of-2) n=1024 trials=3
+OT_EXT SoftSpokenMal receiver n=1024 trial=0 ms=134.519 us_per_ot=131.367 total_B=17925 total_KB=17.505 baseOtCount=128
+OT_EXT SoftSpokenMal sender n=1024 trial=0 ms=178.416 us_per_ot=174.235 total_B=17925 total_KB=17.505 baseOtCount=128
+OT_EXT SoftSpokenMal receiver n=1024 trial=1 ms=180.092 us_per_ot=175.871 total_B=17925 total_KB=17.505 baseOtCount=128
+OT_EXT SoftSpokenMal sender n=1024 trial=1 ms=180.014 us_per_ot=175.795 total_B=17925 total_KB=17.505 baseOtCount=128
+OT_EXT SoftSpokenMal receiver n=1024 trial=2 ms=180.031 us_per_ot=175.812 total_B=17925 total_KB=17.505 baseOtCount=128
+OT_EXT SoftSpokenMal sender n=1024 trial=2 ms=180.066 us_per_ot=175.845 total_B=17925 total_KB=17.505 baseOtCount=128
+----- n=32768 -----
+ot_bench SoftSpokenMalOtExt (malicious SoftSpoken 1-of-2) n=32768 trials=3
+OT_EXT SoftSpokenMal receiver n=32768 trial=0 ms=142.679 us_per_ot=4.354 total_B=271877 total_KB=265.505 baseOtCount=128
+OT_EXT SoftSpokenMal sender n=32768 trial=0 ms=190.518 us_per_ot=5.814 total_B=271877 total_KB=265.505 baseOtCount=128
+OT_EXT SoftSpokenMal receiver n=32768 trial=1 ms=188.168 us_per_ot=5.742 total_B=271877 total_KB=265.505 baseOtCount=128
+OT_EXT SoftSpokenMal sender n=32768 trial=1 ms=184.047 us_per_ot=5.617 total_B=271877 total_KB=265.505 baseOtCount=128
+OT_EXT SoftSpokenMal receiver n=32768 trial=2 ms=184.098 us_per_ot=5.618 total_B=271877 total_KB=265.505 baseOtCount=128
+OT_EXT SoftSpokenMal sender n=32768 trial=2 ms=188.005 us_per_ot=5.737 total_B=271877 total_KB=265.505 baseOtCount=128
+----- n=131072 -----
+ot_bench SoftSpokenMalOtExt (malicious SoftSpoken 1-of-2) n=131072 trials=3
+terminate called without an active exception
+FAIL n=131072
+=== KYBER BASE OT ===
+ot_bench SoftSpokenMalOtExt (malicious SoftSpoken 1-of-2) n=32768 trials=3
+KYBER_BASE_OT receiver trial=0 n=128 ms=10.355 total_B=753728 total_KB=736.062
+KYBER_BASE_OT sender trial=0 n=128 ms=13.668 total_B=753728 total_KB=736.062
+KYBER_BASE_OT sender trial=1 n=128 ms=6.504 total_B=753680 total_KB=736.016
+KYBER_BASE_OT receiver trial=1 n=128 ms=51.123 total_B=753680 total_KB=736.016
+KYBER_BASE_OT sender trial=2 n=128 ms=54.949 total_B=753680 total_KB=736.016
+KYBER_BASE_OT receiver trial=2 n=128 ms=13.988 total_B=753680 total_KB=736.016

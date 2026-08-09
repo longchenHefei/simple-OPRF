@@ -1,0 +1,15 @@
+--- a/coproto/Socket/AsioSocket.h
++++ b/coproto/Socket/AsioSocket.h
+@@ -23,10 +23,8 @@
+ #include <string>
+ #include <vector>
+ 
+-#ifndef NDEBUG
+-#endif
+-	#define COPROTO_ASIO_LOG
+-	#define COPROTO_ASIO_DEBUG
++// Do NOT enable COPROTO_ASIO_DEBUG here: its mSslLock assert races with
++// GlobalIOContext's 2 io_context threads and calls std::terminate().
+ 
+ namespace coproto
+ {

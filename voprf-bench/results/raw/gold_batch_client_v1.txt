@@ -1,0 +1,22 @@
+connected
+
+------------ TEST BATCHED MALICIOUS 2PC-GOLD ------------
+
+batch_n: 1000
+Preparing zk coeffients require 27 us
+offline_us: 7.47294e+06
+offline_emp_B: 6258944
+offline_libOT_sent_B: 1550490
+Offline point:
+communication (B): 6259200
+comm. libOT (B): 1685063
+online_us: 875968
+online_us_per_eval: 875.968
+online_emp_B: 48304
+online_emp_B_per_eval: 48.304
+online_libOT_sent_B: 134573
+oprf eval: 8.34913e+06 us
+communication (B): 6307248
+comm. libOT (B): 1685063
+correctness checking...
+check pass
