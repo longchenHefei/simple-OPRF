@@ -1,0 +1,16 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/data/Hu_workspace/MP-SPDZ-master/deps/KyberOT/cbdeta4.s
+
+/data/Hu_workspace/MP-SPDZ-master/deps/KyberOT/invntt.s
+
+/data/Hu_workspace/MP-SPDZ-master/deps/KyberOT/ntt.s
+
+/data/Hu_workspace/MP-SPDZ-master/deps/KyberOT/polyvec_pointwise_acc.s
+

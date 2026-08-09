@@ -1,0 +1,3 @@
+/data/Hu_workspace/MP-SPDZ-master/deps/KyberOT/CMakeFiles/KyberOT.dir
+/data/Hu_workspace/MP-SPDZ-master/deps/KyberOT/CMakeFiles/edit_cache.dir
+/data/Hu_workspace/MP-SPDZ-master/deps/KyberOT/CMakeFiles/rebuild_cache.dir

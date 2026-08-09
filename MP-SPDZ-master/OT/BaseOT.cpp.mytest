@@ -1,0 +1,761 @@
+#include "OT/BaseOT.h"
+#include "Tools/random.h"
+#include "Tools/benchmarking.h"
+#include "Tools/Bundle.h"
+
+#include <stdio.h>
+#include <iostream>
+#include <fstream>
+#include <pthread.h>
+
+//#include "OT/KyberOT.h"
+
+extern "C" {
+#ifndef NO_AVX_OT
+#include "SimpleOT/ot_sender.h"
+#include "SimpleOT/ot_receiver.h"
+//#include "KyberOT/KyberOT.h"
+#endif
+#include "SimplestOT_C/ref10/ot_sender.h"
+#include "SimplestOT_C/ref10/ot_receiver.h"
+//#include "KyberOT/KyberOT.h"
+//#include "OT/KyberOT.h"
+//#include "OT/KyberOT.c"
+}
+
+// #include <string.h> 
+// #include <sys/types.h>
+// #include <errno.h>
+// #include <sys/stat.h>
+// #include <fcntl.h>
+// #include <unistd.h>
+// #include <sys/syscall.h>
+// #include <stdint.h>
+// #include <assert.h>
+// #include <immintrin.h>
+
+
+extern "C"{
+// #include "OT/KyberOT.c"
+// #include "OT/indcpa.c"
+// #include "OT/polyvec.c"
+// #include "OT/randombytes.c"
+// #include "OT/fips202.c"
+// #include "OT/poly.c"
+// #include "OT/ntt.h"
+// #include "OT/genmatrix.c"
+// #include "OT/cbd.h"
+
+// #include "OT/reduce.c"
+// #include "OT/fips202x4.c"
+
+// #include "params.h"
+
+#include "KyberOT/KyberOT.h" 
+}
+
+//#include "Hu_workspace/MP-SPDZ-master/deps/KyberOT/KyberOT.h"
+
+//#include "OT/indcpa.h"
+//#include "OT/polyvec.h"
+//to sample randomness
+//#include "OT/randombytes.h"
+//#include "OT/fips202.h"
+//#include <string.h>
+
+using namespace std;
+
+const char* role_to_str(OT_ROLE role)
+{
+    if (role == RECEIVER)
+        return "RECEIVER";
+    if (role == SENDER)
+        return "SENDER";
+    return "BOTH";
+}
+
+OT_ROLE INV_ROLE(OT_ROLE role)
+{
+    if (role == RECEIVER)
+        return SENDER;
+    if (role == SENDER)
+        return RECEIVER;
+    else
+        return BOTH;
+}
+
+void send_if_ot_sender(TwoPartyPlayer* P, vector<octetStream>& os, OT_ROLE role)
+{
+    if (role == SENDER)
+    {
+        P->send(os[0]);
+    }
+    else if (role == RECEIVER)
+    {
+        P->receive(os[1]);
+    }
+    else
+    {
+        // both sender + receiver
+        P->send_receive_player(os);
+    }
+}
+
+void send_if_ot_receiver(TwoPartyPlayer* P, vector<octetStream>& os, OT_ROLE role)
+{
+    if (role == RECEIVER)
+    {
+        P->send(os[0]);
+    }
+    else if (role == SENDER)
+    {
+        P->receive(os[1]);
+    }
+    else
+    {
+        // both
+        P->send_receive_player(os);
+    }
+}
+
+// type-dependent redirection
+
+void sender_genS(ref10_SENDER* s, unsigned char* S_pack)
+{
+    ref10_sender_genS(s, S_pack);
+}
+
+void sender_keygen(ref10_SENDER* s, unsigned char* Rs_pack,
+        unsigned char (*keys)[4][HASHBYTES])
+{
+    ref10_sender_keygen(s, Rs_pack, keys);
+}
+
+void receiver_maketable(ref10_RECEIVER* r)
+{
+    ref10_receiver_maketable(r);
+}
+
+void receiver_procS(ref10_RECEIVER* r)
+{
+    ref10_receiver_procS(r);
+}
+
+void receiver_rsgen(ref10_RECEIVER* r, unsigned char* Rs_pack,
+        unsigned char* cs)
+{
+    ref10_receiver_rsgen(r, Rs_pack, cs);
+}
+
+void receiver_keygen(ref10_RECEIVER* r, unsigned char (*keys)[HASHBYTES])
+{
+    ref10_receiver_keygen(r, keys);
+}
+
+void BaseOT::exec_base(bool new_receiver_inputs)
+{
+#ifndef NO_AVX_OT
+    if (cpu_has_avx(true))
+        exec_base<SIMPLEOT_SENDER, SIMPLEOT_RECEIVER>(new_receiver_inputs);
+    else
+#endif
+        exec_base<ref10_SENDER, ref10_RECEIVER>(new_receiver_inputs);
+}
+
+/*
+template<class T, class U>
+void BaseOT::exec_base(bool new_receiver_inputs)
+{
+    int i, j, k;
+    size_t len;
+    PRNG G;
+    G.ReSeed();
+    vector<octetStream> os(2);
+    T sender;
+    U receiver;
+
+    unsigned char S_pack[ PACKBYTES ];
+    unsigned char Rs_pack[ 2 ][ 4 * PACKBYTES ];
+    unsigned char sender_keys[ 2 ][ 4 ][ HASHBYTES ];
+    unsigned char receiver_keys[ 4 ][ HASHBYTES ];
+    unsigned char cs[ 4 ];
+
+    if (ot_role & SENDER)
+    {
+        sender_genS(&sender, S_pack);
+        os[0].store_bytes(S_pack, sizeof(S_pack));
+    }
+    send_if_ot_sender(P, os, ot_role);
+
+    if (ot_role & RECEIVER)
+    {
+        os[1].get_bytes((octet*) receiver.S_pack, len);
+        if (len != HASHBYTES)
+        {
+            cerr << "Received invalid length in base OT\n";
+            exit(1);
+        }
+        receiver_procS(&receiver);
+        receiver_maketable(&receiver);
+    }
+
+    os[0].reset_write_head();
+
+    for (i = 0; i < nOT; i += 4)
+    {
+        if (ot_role & RECEIVER)
+        {
+            for (j = 0; j < 4 and (i + j) < nOT; j++)
+            {
+                if (new_receiver_inputs)
+                    receiver_inputs[i + j] = G.get_uchar()&1;
+                cs[j] = receiver_inputs[i + j].get();
+            }
+            receiver_rsgen(&receiver, Rs_pack[0], cs);
+            os[0].store_bytes(Rs_pack[0], sizeof(Rs_pack[0]));
+            receiver_keygen(&receiver, receiver_keys);
+
+            // Copy keys to receiver_outputs
+            for (j = 0; j < 4 and (i + j) < nOT; j++)
+            {
+                for (k = 0; k < AES_BLK_SIZE; k++)
+                {
+                    receiver_outputs[i + j].set_byte(k, receiver_keys[j][k]);
+                }
+            }
+
+#ifdef BASE_OT_DEBUG
+            for (j = 0; j < 4; j++)
+                for (k = 0; k < AES_BLK_SIZE; k++)
+                {
+                    printf("%4d-th receiver key:", i+j);
+                    for (k = 0; k < HASHBYTES; k++) printf("%.2X", receiver_keys[j][k]);
+                    printf("\n");
+                }
+
+            printf("\n");
+#endif
+        }
+    }
+
+    send_if_ot_receiver(P, os, ot_role);
+        
+    for (i = 0; i < nOT; i += 4)
+    {
+        if (ot_role & SENDER)
+        {
+            os[1].get_bytes((octet*) Rs_pack[1], len);
+            if (len != sizeof(Rs_pack[1]))
+            {
+                cerr << "Received invalid length in base OT\n";
+                exit(1);
+            }
+            sender_keygen(&sender, Rs_pack[1], sender_keys);
+
+            // Copy 128 bits of keys to sender_inputs
+            for (j = 0; j < 4 and (i + j) < nOT; j++)
+            {
+                for (k = 0; k < AES_BLK_SIZE; k++)
+                {
+                    sender_inputs[i + j][0].set_byte(k, sender_keys[0][j][k]);
+                    sender_inputs[i + j][1].set_byte(k, sender_keys[1][j][k]);
+                }
+            }
+        }
+        #ifdef BASE_OT_DEBUG
+        for (j = 0; j < 4; j++)
+        {
+            if (ot_role & SENDER)
+            {
+                printf("%4d-th sender keys:", i+j);
+                for (k = 0; k < HASHBYTES; k++) printf("%.2X", sender_keys[0][j][k]);
+                printf(" ");
+                for (k = 0; k < HASHBYTES; k++) printf("%.2X", sender_keys[1][j][k]);
+                printf("\n");
+            }
+        }
+
+        printf("\n");
+        #endif
+    }
+
+    for (int i = 0; i < nOT; i++)
+    {
+        if (ot_role & RECEIVER)
+            hash_with_id(receiver_outputs.at(i), i);
+        if (ot_role & SENDER)
+            for (int j = 0; j < 2; j++)
+                hash_with_id(sender_inputs.at(i).at(j), i);
+    }
+
+    set_seeds();
+}
+*/
+
+template<class T, class U>
+void BaseOT::exec_base(bool new_receiver_inputs)
+{
+    //vector< array<BitVector, 2> > sender_inputs;
+	//vector<BitVector> receiver_outputs;
+
+    int i, j, k;
+    size_t len;
+    PRNG G;
+    G.ReSeed();
+    vector<octetStream> os(2);
+//    T sender;
+//    U receiver;
+
+    //PACKBYTES = 32, HASHBYTES =32, HASHBITS = 32 *8
+    //S_pack, 0 round, Sender to Receiver, A in Simplest, but no need for Kyber
+    //unsigned char S_pack[ PACKBYTES ];
+
+    //Rs_pack, 1st round, Receiver to Sender, B in Simplest, pks for Kyber, 1 OT each group, 2 messages (Public Keys) each OT.
+    //unsigned char Rs_pack[ 2 ][ 4 * PACKBYTES ];
+    unsigned char Rs_pack[ 2 ][ 2 * PKlength ];
+
+    //Sr_pack, 2nd round, Sender to Receiver, ctxt.sm for Kyber, 1 OT each group, 2 messages (Ciphertexts) each OT.
+    unsigned char Sr_pack[ 2 ][ nOT ][ 2 * CTlength ];
+
+    //output seed from exec_base, then will expand the seed to outputs with PRGs.
+    //We replace 4OTs each group with 1 OT each group, and message length in Kyber (= OTlength = 32 bytes = HASHBYTES) 
+    //Maybe we can use 16 bytes message? no need. we only use the first 16 bytes.
+//    unsigned char sender_keys[ 2 ][ HASHBYTES ];
+//    unsigned char receiver_keys[ 2 ][ HASHBYTES ];
+
+    //cs[4], get from receiver_inputs[i + j], 4 OTs each group. 
+    //Now 2 OTs each group in Kyber 
+    unsigned char cs;
+
+    //variable in Kyber
+    KyberOTCtxt ctxt;
+    KyberOTPtxt ptxt;
+    KyberOTRecver recver;
+    KyberOtRecvPKs pks;
+    KyberOtRecvPKs pks2;
+    KyberOTCtxt ctxt2;
+
+    printf("baseOT begin \n");
+    if (ot_role & RECEIVER)
+        {
+            printf("Hi. I am a RECEIVER in BaseOT (Sender in OTE).\n");
+        }
+
+    if (ot_role & SENDER)
+        {
+            printf("Hi. I am a SENDER in BaseOT (Receiver in OTE).\n");
+        }
+    //test KyberOT
+    /*
+    //random choice bit, unsigned char b
+    randombytes(&recver.b, 1);
+    recver.b &= 1;
+
+    //sample random OT strings
+    //sample message unsigned char [OTlength] m_0, m_1, OTlength=32
+    randombytes(ptxt.sot[0], OTlength);
+    randombytes(ptxt.sot[1], OTlength);
+
+    //get receivers message and secret coins, pks <- R_OT(recver.b)
+    KyberReceiverMessage(&recver, &pks);
+
+    //get senders message, secret coins and ot strings, (ctxt.sm[0],[1]) <- S_OT(ptxt.sot[0], [1], [pks])
+    KyberSenderMessage(&ctxt, &ptxt, &pks);
+
+    //get receivers ot strings, recver.rot <- E_OT(ctxt.sm[b])
+    KyberReceiverStrings(&recver, &ctxt);
+
+    //convert output into something readable
+    for (int i = 0; i < OTlength; i++)
+        printf("%x", ptxt.sot[0][i]);
+    printf(" ");
+    for (int i = 0; i < OTlength; i++)
+        printf("%x", ptxt.sot[1][i]);
+    printf("\n\n");
+
+    //receiver's output
+    for (int i = 0; i < OTlength; i++) {
+        printf("%x", recver.rot[i]);
+    }
+    printf("\n");
+
+    //check correctness
+    printf("Choice Bit: %i\n" , recver.b);
+    if (memcmp(recver.rot, ptxt.sot[recver.b], OTlength) == 0)
+    {
+        printf("PASSED\n");
+    }
+    else
+    {
+        printf("FAILED\n");
+    }
+    */
+
+    //original BaseOT, os[0] <- S_pack, Sender send S_pack to receiver. no need for Kyber OT.
+ //   if (ot_role & SENDER)
+ //   {
+ //      sender_genS(&sender, S_pack);
+ //       os[0].store_bytes(S_pack, sizeof(S_pack));
+ //   }
+    //sender send os[0], receiver receive os[1]
+ //   send_if_ot_sender(P, os, ot_role);
+ //   if (ot_role & RECEIVER)
+ //   {
+ //       os[1].get_bytes((octet*) receiver.S_pack, len);
+ //       if (len != HASHBYTES)
+ //       {
+ //           cerr << "Received invalid length in base OT\n";
+ //           exit(1);
+ //       }
+ //       receiver_procS(&receiver);
+ //       receiver_maketable(&receiver);
+ //   }
+    // Set length to zero but keep allocation
+ //   os[0].reset_write_head();
+
+    //receiver_inputs, store all cs, no more than nOT (1024).
+    //4 OTs each group -> cs[4], but Kyber 1 OT each group.
+    /*
+    for (i = 0; i < nOT; i += 2)
+    {
+        if (ot_role & RECEIVER)
+        {
+            for (j = 0; j < 2 and (i + j) < nOT; j++)
+            {
+                if (new_receiver_inputs)
+                    receiver_inputs[i + j] = G.get_uchar()&1;
+                cs[j] = receiver_inputs[i + j].get();
+                recver.b = cs;
+            }
+
+            //os[0] <- Rs_pack[0] <- rsgen (cs)
+            receiver_rsgen(&receiver, Rs_pack[0], cs);
+            os[0].store_bytes(Rs_pack[0], sizeof(Rs_pack[0]));
+            receiver_keygen(&receiver, receiver_keys);
+
+            // Copy keys to receiver_outputs, AES_BLK_SIZE = 16
+            for (j = 0; j < 4 and (i + j) < nOT; j++)
+            {
+                for (k = 0; k < AES_BLK_SIZE; k++)
+                {
+                    receiver_outputs[i + j].set_byte(k, receiver_keys[j][k]);
+                }
+            }
+        }
+    }
+    */
+   //Kyber 1 OT each group. Replace original variable (OT index in group) j with a char index in packets.
+    for (i = 0; i < nOT; i ++)
+    {
+        if (ot_role & RECEIVER)
+        {
+            if (new_receiver_inputs)
+                receiver_inputs[i] = G.get_uchar()&1;
+            cs = receiver_inputs[i].get();
+
+            //anyway , Kyber choice bit comes from original cs.
+            recver.b = cs;
+
+            //os[0] <- Rs_pack[0] <- pks <- rsgen (cs)
+            KyberReceiverMessage(&recver, &pks);
+            //os channel only sends unsigned chars instead of char arrays? Copy pks to Rs_pack[0].
+            for (j = 0; j < PKlength; j++)
+                Rs_pack[0][j] = pks.keys[0][j];
+            for (j = 0; j < PKlength; j++)
+                Rs_pack[0][j + PKlength] = pks.keys[1][j];
+            
+            //Pilling up nOT(1024) Rs_packs.
+            os[0].store_bytes(Rs_pack[0], sizeof(Rs_pack[0]));
+
+            //receiver_rsgen(&receiver, Rs_pack[0], cs);
+            //os[0].store_bytes(Rs_pack[0], sizeof(Rs_pack[0]));
+            //receiver_keygen(&receiver, receiver_keys);
+
+            // Copy keys to receiver_outputs, AES_BLK_SIZE = 16
+            //for (j = 0; j < 4 and (i + j) < nOT; j++)
+            //{
+            //    for (k = 0; k < AES_BLK_SIZE; k++)
+            //    {
+            //        receiver_outputs[i + j].set_byte(k, receiver_keys[j][k]);
+            //    }
+            //}
+            //printf("This is Receiver. size[%d]= %lu \n", i, sizeof(Rs_pack[0]));
+        }
+    }
+
+    //receiver send OS[0], sender receive os[1]. receiver send RS_pack[0].
+    send_if_ot_receiver(P, os, ot_role);
+        
+    for (i = 0; i < nOT; i ++)
+    {
+        //sender receive and store in RS_pack[1].
+        if (ot_role & SENDER)
+        {
+            //Sender gets 1024 Rs_packs one by one. Each pack contains two Pklength(1280)-length messages.
+            os[1].get_bytes((octet*) Rs_pack[1], len);
+
+            // printf("Sender gets Rs_pack. size[%d]= %lu, len = %lu \n", i, sizeof(Rs_pack[1]), len);
+            if (len != sizeof(Rs_pack[1]))
+            {
+                cerr << "Received invalid length in base OT\n";
+                exit(1);
+            }
+
+            // (sender_keys[0][j][k],  sender_keys[1][j][k]) <- sender_keygen(s.S_pack, Rs_pack[1])
+            // generate keys for 4OTs once time, length = 4OTs * 16 bytes(each 128 bits)
+            // size = 32 bytes but copy 16 bytes? (32 bytes for 256-bit AES?)
+            //sender_keygen(&sender, Rs_pack[1], sender_keys);
+
+            // Copy 128 bits of keys to sender_inputs
+            /*
+            for (j = 0; j < 4 and (i + j) < nOT; j++)
+            {
+                //AES_BLK_SIZE 16, sender_input[nOT][0/1] = bytes[k], each message in each OT = 16 bytes =128 bits (AES).
+                //inputs = extension keys = seeds for PRG?
+                for (k = 0; k < AES_BLK_SIZE; k++)
+                {
+                    sender_inputs[i + j][0].set_byte(k, sender_keys[0][j][k]);
+                    sender_inputs[i + j][1].set_byte(k, sender_keys[1][j][k]);
+                }
+            }
+            */
+            
+            //os channel only sends unsigned chars instead of char arrays? Copy Rs_pack[1] to pks2.
+            for (j = 0; j < PKlength; j++)
+                pks2.keys[0][j] = Rs_pack[1][j];
+            for (j = 0; j < PKlength; j++)
+                pks2.keys[1][j] = Rs_pack[1][j + PKlength];
+
+            //sample message for each OT, unsigned char [OTlength] m_0, m_1, OTlength=32            
+            randombytes(ptxt.sot[0], OTlength);
+            randombytes(ptxt.sot[1], OTlength);
+
+            //A possible problem: original inputs 16 length, but 32 length now? We only copy 16 length here.
+            //Maybe two OTs a group! No! A choose -> a 32-length message, correct; two 16-length messages, incorrect. 
+            //Only use first 16 length.
+            for (k = 0; k < AES_BLK_SIZE; k++)
+            {
+                sender_inputs[i][0].set_byte(k, ptxt.sot[0][k]);
+                sender_inputs[i][1].set_byte(k, ptxt.sot[1][k]);
+            }
+            
+            //get senders message, secret coins and ot strings, (ctxt.sm[0],[1]) <- S_OT(ptxt.sot[0], [1], [pks])
+            KyberSenderMessage(&ctxt, &ptxt, &pks2);
+
+            //os channel only sends unsigned chars instead of char arrays? Copy ctxt.sm[] to Sr_pack[0].
+            //We must buffer Sr_packs of all the nOTs (1024 OT) and send together. Because we can't read os and write os together?
+            //Not sure the read_head and write_head?
+            for (j = 0; j < CTlength; j++)
+                Sr_pack[0][i][j] = ctxt.sm[0][j];
+            for (j = 0; j < CTlength; j++)
+                Sr_pack[0][i][j + CTlength] = ctxt.sm[1][j];
+
+
+        }
+    }
+    
+    //clean the os[0] buffer and store new messages from sender.
+    os[0].reset_write_head();
+    
+    for (i = 0; i < nOT; i ++)
+    {
+        //sender sends Sr_pack[0][i] one by one and pills them up in the os[0] buffer.
+        if (ot_role & SENDER)
+        { 
+        os[0].store_bytes(Sr_pack[0][i], sizeof(Sr_pack[0][i]));
+        // nOT = 128, each pack size = 3328, right.
+    //    printf("This is sender. size[%d]= %lu \n", i, sizeof(Sr_pack[0][i]));
+        }
+    }
+
+    printf("baseOT test safe. \n");
+
+    //Sender sends OS[0], Receiver receives os[1]. Sender sends Sr_pack[0].
+    send_if_ot_sender(P, os, ot_role);
+
+    for (i = 0; i < nOT; i ++)
+    {
+        // printf("both safe.[%d] \n", i);
+        //Receiver receives Sr_pack[1][i] one by one.
+        if (ot_role & RECEIVER)
+        { 
+            // printf("Receiver begins to get pack[%d] \n", i);
+
+            os[1].get_bytes((octet*) Sr_pack[1][i], len);
+            
+            // printf("Receiver gets a pack, size = %lu, len = %lu, [%d] \n",sizeof(Sr_pack[1][i]), len, i);
+            if (len != sizeof(Sr_pack[1][i]))
+            {
+                cerr << "Received invalid length in base OT\n";
+                exit(1);
+            }
+            // printf("baseOT test Receiver safe. \n");
+            //os channel only sends unsigned chars instead of char arrays? Copy Sr_pack[1][i] to ctxt2.sm.
+            for (j = 0; j < CTlength; j++)
+                ctxt2.sm[0][j] = Sr_pack[0][i][j] ;
+            for (j = 0; j < CTlength; j++)
+                ctxt2.sm[1][j] = Sr_pack[0][i][j + CTlength];
+
+            //get receivers ot strings, recver.rot <- E_OT(ctxt2.sm[b])    
+            KyberReceiverStrings(&recver, &ctxt2);   
+
+            //A possible problem: original inputs 16 length, but 32 length now? We only copy 16 length here.
+            //Maybe two OTs a group! No! A choose -> a 32-length message, correct; two 16-length messages, incorrect. 
+            //Only use first 16 length.
+            //Copy recver.rot to receiver_outputs. rot[OTlength]
+            for (k = 0; k < AES_BLK_SIZE; k++)
+            {
+                receiver_outputs[i].set_byte(k, recver.rot[k]);
+            }
+
+        }
+    }
+    printf("baseOT test safe 2. \n");
+    os[0].reset_write_head();
+
+
+    for (int i = 0; i < nOT; i++)
+    {
+        if (ot_role & RECEIVER)
+            hash_with_id(receiver_outputs.at(i), i);
+
+
+        if (ot_role & SENDER)
+            for (int j = 0; j < 2; j++)
+                hash_with_id(sender_inputs.at(i).at(j), i);
+    }
+
+    set_seeds();
+
+    printf("baseOT end \n");
+}
+
+
+void BaseOT::hash_with_id(BitVector& bits, long id)
+{
+    assert(bits.size_bytes() >= AES_BLK_SIZE);
+    Hash hash;
+    hash.update(bits.get_ptr(), bits.size_bytes());
+    hash.update(&id, sizeof(id));
+    hash.final(bits.get_ptr(), bits.size_bytes());
+}
+
+void BaseOT::set_seeds()
+{
+    for (int i = 0; i < nOT; i++)
+    {
+        // Set PRG seeds
+        if (ot_role & SENDER)
+        {
+            G_sender[i][0].SetSeed(sender_inputs[i][0].get_ptr());
+            G_sender[i][1].SetSeed(sender_inputs[i][1].get_ptr());
+        }
+        if (ot_role & RECEIVER)
+        {
+            G_receiver[i].SetSeed(receiver_outputs[i].get_ptr());
+        }
+    }
+    extend_length();
+}
+
+void BaseOT::extend_length()
+{
+    for (int i = 0; i < nOT; i++)
+    {
+        if (ot_role & SENDER)
+        {
+            sender_inputs[i][0].randomize(G_sender[i][0]);
+            sender_inputs[i][1].randomize(G_sender[i][1]);
+        }
+        if (ot_role & RECEIVER)
+        {
+            receiver_outputs[i].randomize(G_receiver[i]);
+        }
+    }
+}
+
+
+void BaseOT::check()
+{
+    vector<octetStream> os(2);
+    BitVector tmp_vector(8 * AES_BLK_SIZE);
+
+
+    for (int i = 0; i < nOT; i++)
+    {
+        if (ot_role == SENDER)
+        {
+            // send both inputs over
+            sender_inputs[i][0].pack(os[0]);
+            sender_inputs[i][1].pack(os[0]);
+            P->send(os[0]);
+        }
+        else if (ot_role == RECEIVER)
+        {
+            P->receive(os[1]);
+        }
+        else
+        {
+            // both sender + receiver
+            sender_inputs[i][0].pack(os[0]);
+            sender_inputs[i][1].pack(os[0]);
+            P->send_receive_player(os);
+        }
+        if (ot_role & RECEIVER)
+        {
+            //choose bit == 0, tmp_vector = sender_inputs[i][0]
+            tmp_vector.unpack(os[1]);
+
+            //choose bit == 1
+            if (receiver_inputs[i] == 1)
+            {
+            //tmp_vector = sender_inputs[i][1]
+                tmp_vector.unpack(os[1]);
+            }
+            if (!tmp_vector.equals(receiver_outputs[i]))
+            {
+                cerr << "Incorrect OT\n";
+                exit(1);
+            }
+        }
+        os[0].reset_write_head();
+        os[1].reset_write_head();
+    }
+}
+
+
+void FakeOT::exec_base(bool new_receiver_inputs)
+{
+    insecure("base OTs");
+    PRNG G;
+    G.ReSeed();
+    vector<octetStream> os(2);
+    vector<BitVector> bv(2, 128);
+
+    if ((ot_role & RECEIVER) && new_receiver_inputs)
+    {
+        for (int i = 0; i < nOT; i++)
+            // Generate my receiver inputs
+            receiver_inputs[i] = G.get_uchar()&1;
+    }
+
+    if (ot_role & SENDER)
+        for (int i = 0; i < nOT; i++)
+            for (int j = 0; j < 2; j++)
+            {
+                sender_inputs[i][j].randomize(G);
+                sender_inputs[i][j].pack(os[0]);
+            }
+
+    send_if_ot_sender(P, os, ot_role);
+
+    if (ot_role & RECEIVER)
+        for (int i = 0; i < nOT; i++)
+        {
+            for (int j = 0; j < 2; j++)
+                bv[j].unpack(os[1]);
+            receiver_outputs[i] = bv[receiver_inputs[i].get()];
+        }
+
+    set_seeds();
+}

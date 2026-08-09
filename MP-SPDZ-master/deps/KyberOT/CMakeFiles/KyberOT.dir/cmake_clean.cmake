@@ -1,0 +1,43 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/KyberOT.dir/KyberOT.c.o"
+  "CMakeFiles/KyberOT.dir/KyberOT.c.o.d"
+  "CMakeFiles/KyberOT.dir/cbdeta4.s.o"
+  "CMakeFiles/KyberOT.dir/cbdref.c.o"
+  "CMakeFiles/KyberOT.dir/cbdref.c.o.d"
+  "CMakeFiles/KyberOT.dir/consts.c.o"
+  "CMakeFiles/KyberOT.dir/consts.c.o.d"
+  "CMakeFiles/KyberOT.dir/fips202.c.o"
+  "CMakeFiles/KyberOT.dir/fips202.c.o.d"
+  "CMakeFiles/KyberOT.dir/fips202x4.c.o"
+  "CMakeFiles/KyberOT.dir/fips202x4.c.o.d"
+  "CMakeFiles/KyberOT.dir/genmatrix.c.o"
+  "CMakeFiles/KyberOT.dir/genmatrix.c.o.d"
+  "CMakeFiles/KyberOT.dir/indcpa.c.o"
+  "CMakeFiles/KyberOT.dir/indcpa.c.o.d"
+  "CMakeFiles/KyberOT.dir/invntt.s.o"
+  "CMakeFiles/KyberOT.dir/kem.c.o"
+  "CMakeFiles/KyberOT.dir/kem.c.o.d"
+  "CMakeFiles/KyberOT.dir/kex.c.o"
+  "CMakeFiles/KyberOT.dir/kex.c.o.d"
+  "CMakeFiles/KyberOT.dir/ntt.s.o"
+  "CMakeFiles/KyberOT.dir/poly.c.o"
+  "CMakeFiles/KyberOT.dir/poly.c.o.d"
+  "CMakeFiles/KyberOT.dir/polyvec.c.o"
+  "CMakeFiles/KyberOT.dir/polyvec.c.o.d"
+  "CMakeFiles/KyberOT.dir/polyvec_pointwise_acc.s.o"
+  "CMakeFiles/KyberOT.dir/precomp.c.o"
+  "CMakeFiles/KyberOT.dir/precomp.c.o.d"
+  "CMakeFiles/KyberOT.dir/randombytes.c.o"
+  "CMakeFiles/KyberOT.dir/randombytes.c.o.d"
+  "CMakeFiles/KyberOT.dir/reduce.c.o"
+  "CMakeFiles/KyberOT.dir/reduce.c.o.d"
+  "CMakeFiles/KyberOT.dir/verify.c.o"
+  "CMakeFiles/KyberOT.dir/verify.c.o.d"
+  "libKyberOT.a"
+  "libKyberOT.pdb"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang ASM C)
+  include(CMakeFiles/KyberOT.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

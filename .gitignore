@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+
+# Build artifacts (also covered by MP-SPDZ-master/.gitignore)
+*.o
+*.d
+*.so
+*.a
+*.x
+*.pyc
+local/
+
+# Runtime / offline data
+Player-Data/
+Prep-Data/
+logs/

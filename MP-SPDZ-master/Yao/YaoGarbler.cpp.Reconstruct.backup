@@ -1,0 +1,165 @@
+/*
+ * YaoGarbler.cpp
+ *
+ */
+
+#include "YaoGarbler.h"
+#include "YaoGate.h"
+
+#include "GC/ThreadMaster.hpp"
+#include "GC/Processor.hpp"
+#include "GC/Program.hpp"
+#include "GC/Machine.hpp"
+#include "GC/Secret.hpp"
+#include "GC/Thread.hpp"
+#include "Tools/MMO.hpp"
+#include "YaoWire.hpp"
+
+thread_local YaoGarbler* YaoGarbler::singleton = 0;
+
+YaoGarbler::YaoGarbler(int thread_num, YaoGarbleMaster& master) :
+		GC::Thread<GC::Secret<YaoGarbleWire>>(thread_num, master),
+		YaoCommon<YaoGarbleWire>(master),
+		master(master),
+		and_proc_timer(CLOCK_PROCESS_CPUTIME_ID),
+		and_main_thread_timer(CLOCK_THREAD_CPUTIME_ID),
+		player(master.N, 1, "thread" + to_string(thread_num)),
+		ot_ext(OTExtensionWithMatrix::setup(player,
+				master.get_delta().get<__m128i>(), SENDER, true))
+{
+	// printf("This is a Garbler.\n");
+	prng.ReSeed();
+	set_n_program_threads(master.machine.nthreads);
+	this->init(*this);
+	if (continuous())
+	    taint();
+	else
+	{
+		processor.out.activate(false);
+		if (not master.opts.cmd_private_output_file.empty())
+			cerr << "Garbling party cannot output with one-shot computation"
+					<< endl;
+	}
+}
+
+YaoGarbler::~YaoGarbler()
+{
+#ifdef VERBOSE
+	cerr << "Number of AND gates: " << counter << endl;
+#endif
+#ifdef YAO_TIMINGS
+	cout << "AND time: " << and_timer.elapsed() << endl;
+	cout << "AND process timer: " << and_proc_timer.elapsed() << endl;
+	cout << "AND main thread timer: " << and_main_thread_timer.elapsed() << endl;
+	cout << "AND prepare timer: " << and_prepare_timer.elapsed() << endl;
+	cout << "AND wait timer: " << and_wait_timer.elapsed() << endl;
+	for (auto& x : timers)
+		cout << x.first << " time:" << x.second.elapsed() << endl;
+#endif
+}
+
+// bool YaoEvaluator::Init_receive(Player& P)
+// {
+
+// 	P.receive_player(1, Initfinalize);
+// 	return true;
+// }
+
+void YaoGarbler::run(GC::Program& program)
+{
+	// (t,n) parameters in PPSS
+	// int t = 2;
+	int n = 3;
+	PRNG G;
+	G.ReSeed();
+
+	octetStream Initfinalize;
+	 unsigned char Init_pack[ 16 * n + 32 ];
+
+	__m128i init_128[n + 2];
+	unsigned char bytes2[16];
+	singleton = this;
+
+	GC::BreakType b = GC::TIME_BREAK;
+		// printf("This is a Garbler.\n");
+	while(GC::DONE_BREAK != b)
+	{
+		try
+		{
+			b = program.execute(processor, master.memory, -1);
+		}
+		catch (needs_cleaning& e)
+		{
+			if (not continuous())
+				throw runtime_error("run-time branching impossible with garbling at once");
+			processor.PC--;
+		}
+		send(*P);
+		gates.clear();
+		output_masks.clear();
+		if (continuous()){
+			process_receiver_inputs();
+				// printf("This is a Garbler!!!!!!!!!!!!!\n");
+		}
+	}
+		printf("GC is done.\n");
+
+		// Receive in Init.
+		//P->receive_player(1, Initfinalize);
+		
+			//copy comout to Init_pack
+		for(int i = 0; i < n + 2; i++)
+			init_128[i] = G.get_doubleword();
+
+		for (int j = 0; j < n + 2; j++){
+			_mm_storeu_si128(reinterpret_cast<__m128i*>(bytes2), init_128[j+1]);
+			for (int i = 0; i < 16; i++) {
+				Init_pack[j * 16 + i] = bytes2[i];
+			}
+		}
+		Initfinalize.store_bytes(Init_pack, sizeof(Init_pack));
+
+		P->send_to(1, Initfinalize);
+}
+
+void YaoGarbler::post_run()
+{
+	if (not continuous())
+	{
+		P->send_long(1, YaoCommon::DONE);
+		process_receiver_inputs();
+	}
+}
+
+void YaoGarbler::send(Player& P)
+{
+#ifdef DEBUG_YAO
+	cerr << "sending " << gates.size() << " bytes for gates and "
+			<< output_masks.size() << " output masks at " << processor.PC
+			<< " in thread " << thread_num << endl;
+#endif
+	P.send_long(1, YaoCommon::MORE);
+	size_t size = gates.size();
+	P.send_to(1, gates);
+	gates.allocate(2 * size);
+	P.send_to(1, output_masks);
+}
+
+void YaoGarbler::process_receiver_inputs()
+{
+	// printf("This is a Garbler!!!!!!!!!!!!!\n");
+	while (not receiver_input_keys.empty())
+	{
+		vector<Key>& inputs = receiver_input_keys.front();
+		BitVector _;
+		//  printf("This is a Garbler____________________.\n");
+		ot_ext.extend_correlated(inputs.size(), _);
+
+		octetStream os;
+		for (size_t i = 0; i < inputs.size(); i++)
+			os.serialize(inputs[i] ^ ot_ext.senderOutputMatrices[0][i]);
+		player.send(os);
+
+		receiver_input_keys.pop_front();
+	}
+}
