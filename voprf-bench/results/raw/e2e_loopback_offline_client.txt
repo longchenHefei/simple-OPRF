@@ -1,0 +1,22 @@
+voprf_e2e role=client ip=127.0.0.1 port=19000 m=128 n_ot=32768 tables=offline
+role: client
+tables_mode: offline
+m: 128
+n_ot: 32768
+tables_bytes: 209768
+proof_bytes: 38887
+offline_ms: 116.051
+offline_B: 963536
+online_ms: 226.017
+online_ms_per_eval: 1.766
+online_B: 310823
+online_B_per_eval: 2428.305
+online_rounds: 2
+verify_ok: 1
+stark_verify_log:
+verify_ms: 0.361
+proof_bytes: 38887
+n: 16384
+digest: e1170fe11d409932
+verify: ok
+check: pass

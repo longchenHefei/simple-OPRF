@@ -1,0 +1,20 @@
+voprf_e2e role=server ip=127.0.0.1 port=19100 m=128 n_ot=32768 tables=online
+role: server
+tables_mode: online
+m: 128
+n_ot: 32768
+tables_bytes: 209768
+proof_bytes: 38887
+offline_ms: 75.475
+offline_B: 753728
+online_ms: 330.161
+online_ms_per_eval: 2.579
+online_B: 520631
+online_rounds: 2
+verify_ok: 1
+stark_prove_log:
+prove_ms: 56.646
+proof_bytes: 38887
+n: 16384
+digest: e1170fe11d409932
+check: pass

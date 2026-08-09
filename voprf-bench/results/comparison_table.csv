@@ -1,5 +1,7 @@
 Work,Online_rounds,Online_comm_per_eval,Online_client_per_eval,Online_server_per_eval,Verifiability,Notes
-Ours_tables_offline,2,4.15_KB,1.97_ms,n/a_STARK_prove_offline,public_STARK,"m=128; OT n=32768; STARK verify from Mac 2.8ms"
-Ours_tables_online,2,209_KB,1.97_ms,n/a_STARK_prove_offline,public_STARK,"tables 204.78 KiB/eval + OT amortized"
+Ours_tables_offline_synth,2,4.15_KB,1.97_ms,n/a_STARK_prove_offline,public_STARK,"m=128; component synthesis; STARK was Mac"
+Ours_tables_online_synth,2,209_KB,1.97_ms,n/a_STARK_prove_offline,public_STARK,"tables 204.78 KiB/eval + OT amortized"
+Ours_E2E_tables_offline,2,2.43_KB,1.766_ms,1.766_ms,public_STARK,"integrated loopback; sock both-dir/m; stark fib proxy"
+Ours_E2E_tables_online,2,4.07_KB,2.578_ms,2.579_ms,public_STARK,"integrated loopback; includes tables+proof online"
 Gold_PQ_malicious_single,~3-4,2.81_KB,0.471_ms,0.629_ms,designated_VOLE_ZK,"PR-OPRF ENABLE_PQ; this host loopback"
 Gold_PQ_malicious_batch_n1000,~3-4,0.094_KB,0.015_ms,0.001_ms,designated_VOLE_ZK,"true_online after Offline point; offline ~7.5s"

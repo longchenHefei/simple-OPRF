@@ -11,8 +11,10 @@ deps/
 
 # Large local binaries
 **/test_oprf_test_*
+**/voprf_e2e
 **/garble_bench
 **/ot_bench
+stark-mmo/target/
 
 # Editor / OS
 .DS_Store

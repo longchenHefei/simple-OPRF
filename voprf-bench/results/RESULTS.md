@@ -190,21 +190,74 @@ CSV: `results/comparison_table.csv`
 
 ---
 
+## 5b. Integrated E2E loopback (Phase 0+1) — this host
+
+**Deployment:** both `server` and `client` processes on **this Linux host** (`127.0.0.1`). A Mac laptop is only an SSH operator — **not** a protocol peer (KyberOT is x86-oriented; PQ path stays on Linux).
+
+**Pipeline:** offline Kyber base OT + garble + STARK prove → online SoftSpokenMal OT extension + (optional) tables + `m` GC evals + STARK verify.
+
+**STARK statement:** winterfell `fib_small`-style AIR (`stark-mmo/`, `n=16384`); runnable public-verify stand-in for the paper’s MMO/AES-garbling STARK — **not** a full AES-circuit AIR. Documented honestly below.
+
+### Reproduce
+
+```bash
+cd voprf-bench
+bash build_e2e_linux.sh
+export LD_LIBRARY_PATH="$PWD/deps/libOTe/out/install/linux/lib:$PWD/deps/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+bash scripts/run_e2e_loopback.sh offline 19000
+bash scripts/run_e2e_loopback.sh online  19100
+```
+
+### Measured (m=128, n_ot=32768, stark-n=16384)
+
+| Mode | Online client ms | Online ms/eval | Online B (both-dir sock) | Online B/eval | Proof B | check |
+|---|---|---|---|---|---|---|
+| tables **offline** | **226.0** | **1.766** | 310823 (~303.5 KB) | ~2.43 KB | 38887 | pass |
+| tables **online** | **330.0** | **2.578** | 520631 (~508.4 KB) | ~4.07 KB | 38887 | pass |
+
+| Side | Offline ms (offline mode) | Notes |
+|---|---|---|
+| server | ~71 | includes Kyber + garble + prove (~55 ms) |
+| client | ~116 | Kyber + recv tables |
+
+STARK verify on client online path: **~0.36 ms** (this host). Prove offline: **~55–57 ms**.
+
+Logs: `results/raw/e2e_loopback_{offline,online}_{server,client}.txt`
+
+### vs component synthesis (§3.5)
+
+| | Synthesized (OT+GC+Mac STARK) | E2E integrated (tables offline) |
+|---|---|---|
+| Online client/eval | 1.97 ms | **1.77 ms** |
+| Online comm/eval | 4.15 KB (OT only) | **~2.43 KB** sock total/m (OT+proof; one-side accounting differs) |
+
+E2E wall time includes scheduling, proof transfer, and verify; synthesis was a lower-bound sum. Orders of magnitude match on this VM.
+
+### Paper wording tip
+
+- Prefer citing **E2E loopback** for “integrated prototype” online numbers.
+- Keep component rows for OT/GC microbenchmarks.
+- Footnote STARK AIR as fib/MMO-proxy until a full AES-garble AIR is wired.
+
+---
+
 ## 6. Short analysis (for paper discussion)
 
 1. **Rounds:** Ours stays **2**; Gold online remains **multi-message (~3–4)** even when amortized.
 2. **Small-batch amortization:** Ours quotes **m=128**. Gold’s sub-KB / ~15 µs online at **n=1000** still sits on **multi-second + multi-MB offline** on this host; do **not** compare Gold’s 1.9 KB paper figure (large-n AWS) to Ours m=128 without stating n.
-3. **Verifiability:** Ours = **public** STARK verify; Gold = **designated** VOLE-ZK verifier.
-4. **Honest disadvantages (Ours):** tables-online communication (~209 KB/eval); server STARK prove offline (Mac ~5.2 s/circuit, not re-run here).
+3. **Verifiability:** Ours = **public** STARK verify (`stark-mmo` on this host); Gold = **designated** VOLE-ZK verifier.
+4. **Honest disadvantages (Ours):** tables-online communication; server STARK prove offline (~55 ms here for proxy AIR; paper AES-AIR prove is larger).
 5. **vs Mac baseline:** OT time ~31× slower; GC eval ~8.6× slower; OT bytes match. **Do not** drop Mac numbers into this table as “same machine.”
+6. **Mac as client:** not used for PQ E2E (KyberOT). Use Linux↔Linux (loopback or two Linux hosts) for WAN later.
 
 ### Can these replace paper Table V Ours/Gold rows?
 
 **Yes, for a Linux/x86 same-machine column**, with footnotes:
 
-- STARK verify (Ours) still Mac unless `stark-mmo` is rebuilt here;
+- Prefer **§5b E2E** for integrated online Ours; component synthesis remains supporting evidence;
+- STARK is a winterfell fib/MMO-proxy AIR (public verify), not full AES-circuit;
 - Gold classic optional row missing;
-- This VM is **not** representative of a high-end client (2 vCPU / 2 GiB); for a “laptop-class” claim prefer Mac Ours + this Gold, or re-run on a larger Linux box.
+- This VM is **not** representative of a high-end client (2 vCPU / 2 GiB).
 
 ---
 
@@ -217,4 +270,5 @@ CSV: `results/comparison_table.csv`
 | `results/raw/ot_sweep_final.txt` | OT sweep + Kyber |
 | `results/raw/gold_single_*_ok.txt` | Gold single |
 | `results/raw/gold_batch_*.txt` | Gold batch n=1000 |
+| `results/raw/e2e_loopback_*.txt` | Integrated E2E |
 | `results/comparison_table.csv` | Final table |

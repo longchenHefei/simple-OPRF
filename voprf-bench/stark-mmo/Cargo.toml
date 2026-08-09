@@ -1,0 +1,10 @@
+[package]
+name = "stark-mmo"
+version = "0.1.0"
+edition = "2021"
+description = "Minimal winterfell STARK prove/verify CLI for GC-VOPRF E2E"
+
+[dependencies]
+winterfell = "0.9"
+clap = { version = "4", features = ["derive"] }
+hex = "0.4"
